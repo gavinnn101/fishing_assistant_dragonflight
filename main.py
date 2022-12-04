@@ -28,7 +28,7 @@ DIP_THRESHOLD = 7  # May need to adjust
 #####################
 # Fishing variables #
 #####################
-template = cv.imread('bobber_orange_two.png', 0)
+template = cv.imread('bobber_dark.png', 0)
 w, h = template.shape[::-1]
 #####################
 # Fishing variables #
@@ -43,8 +43,12 @@ game_window_handle = FindWindow(game_window_class, game_window_name)
 game_window_rect = GetWindowRect(game_window_handle)  # left, top, right, bottom
 game_size = GetClientRect(game_window_handle)
 
-top_offset = 30
-bot_offset = 8
+# # First set of offsets (30,8) will remove window title bar / border
+# top_offset = 30
+# bot_offset = 8
+# Second set of offsets will only show middle of game window
+top_offset = (game_size[2] // 2) - int((0.20 * game_size[2]))
+bot_offset = (game_size[3] // 2) - int((0.30 * game_size[3]))
 logger.info(f'Full Game Rect: {game_window_rect}')
 game_window_rect = (
     game_window_rect[0] + bot_offset,
@@ -81,12 +85,12 @@ def translate_coords(coords):
 def move_mouse(x,y):
     """Moves cursor to x,y on screen."""
     if INPUT_METHOD == 'virtual':
-        time.sleep(1 + random.random())
+        time.sleep(random.random())
         try:
             mouse.move(x,y)
         except Exception:
             logger.warning('Failed to move mouse')
-        time.sleep(1 + random.random())
+        time.sleep(random.random())
     elif INPUT_METHOD == 'interception':
         pass
     elif INPUT_METHOD == 'arduino':
@@ -136,14 +140,15 @@ def catch_fish(bobber_box):
             # Check that we found the bobber
             confidence, location = find_bobber(screenshot, template)
             logger.debug(f'Confidence: {confidence} | Location: {location}')
-            if (confidence >= MIN_CONFIDENCE):
+            if (confidence >= 0.30):
                 # Get average y value
                 counter += 1
                 total_y += location[1]
                 average_y_value = total_y // counter
-                # Draw rectangle around bobber being tracked
-                bottom_right = (location[0] + w, location[1] + h)
-                cv.rectangle(screenshot, location, bottom_right, (0,255,0), 1)
+                if DEBUG:
+                    # Draw rectangle around bobber being tracked
+                    bottom_right = (location[0] + w, location[1] + h)
+                    cv.rectangle(screenshot, location, bottom_right, (0,255,0), 1)
                 # Check if the new bobber_y_value is greater than our difference threshold
                 logger.debug(f'Checking if {location[1]} - {average_y_value} >= {DIP_THRESHOLD}')
                 if (location[1] - average_y_value >= DIP_THRESHOLD):
@@ -158,6 +163,11 @@ def catch_fish(bobber_box):
 
 
 def main():
+    if not DEBUG:
+        # Set log level to INFO
+        logger.remove()
+        logger.add(sys.stderr, level="INFO")
+
     logger.info('Setting game window to foreground.')
     SetForegroundWindow(game_window_handle)
     # Wait for game window to enter foreground before starting to fish
@@ -174,6 +184,13 @@ def main():
             # Check game for bobber
             confidence, location = find_bobber(screenshot, template)
             logger.debug(f'Confidence: {confidence}')
+            # Show Game window if DEBUG is enabled
+            if DEBUG:
+                cv.imshow('WoW Debug', screenshot)
+                key = cv.waitKey(1)
+                if key == ord('q'):
+                    cv.destroyAllWindows()
+                    sys.exit()
             # Check if the match is above our confidence threshold
             if confidence >= MIN_CONFIDENCE:
                 logger.success(f"Bobber Found | Confidence: {confidence} | location: {location}")
@@ -186,12 +203,6 @@ def main():
                 move_mouse(screen_coords[0], screen_coords[1])
                 # Wait for catch
                 catch_fish(bobber_box)
-            if DEBUG:
-                cv.imshow('WoW Debug', screenshot)
-                key = cv.waitKey(1)
-                if key == ord('q'):
-                    cv.destroyAllWindows()
-                    sys.exit()
 
 
 main()
