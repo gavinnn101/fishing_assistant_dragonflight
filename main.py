@@ -1,5 +1,6 @@
 import cv2 as cv
 from datetime import datetime
+from discord_webhook import DiscordWebhook, DiscordEmbed
 import numpy as np
 import sys
 from mss import mss
@@ -47,6 +48,14 @@ vendor_interval = 60  # Minutes between selling trash items
 # Shopping variables #
 ######################
 
+###################
+# Discord Webhook #
+###################
+DISCORD_WEBHOOK = False  # Set to True and paste your webhook url below
+WEBHOOK_URL = 'YOURWEBHOOKURLHERE'
+###################
+# Discord Webhook #
+###################
 
 #########################
 # Game Client Variables #
@@ -73,6 +82,17 @@ game_window_rect = (
 #########################
 # Game Client Variables #
 #########################
+
+#################
+# Fishing Stats #
+#################
+fish_caught = 0
+no_fish_casts = 0
+bait_used = 0
+rods_cast = 0
+#################
+# Fishing Stats #
+#################
 
 
 def find_bobber(screenshot, template):
@@ -159,12 +179,45 @@ def auto_vendor(mammoth_hotkey, target_hotkey, interact_hotkey):
     # Close shop window
     logger.debug('closing shop window')
     press_key('esc')  # escape
-    time.sleep(2 + random.random())
+    time.sleep(1 + random.random())
     # Close shop window
     logger.debug('deselect target')
     press_key('esc')  # escape
-    time.sleep(2 + random.random())
+    time.sleep(1 + random.random())
 
+
+def send_stats(start_time, fish_caught, no_fish_casts, rods_cast, bait_used, game_screenshot):
+    """Prints stats for current run and sends via webhook if enabled."""
+    time_ran = get_duration(then=start_time, now=datetime.now(), interval='default')
+    gold_earned = fish_caught * 10
+    logger.success('-----------------------')
+    logger.success('Progress Report:')
+    logger.success(f'Time Ran: {time_ran} minute(s)')
+    logger.success(f'Estimated Gold Earned: {gold_earned}g')
+    logger.success(f'Rods Cast: {rods_cast}')
+    logger.success(f'Fish Caught: {fish_caught}')
+    logger.success(f'Bait Used: {bait_used}')
+    logger.success('-----------------------')
+
+    if DISCORD_WEBHOOK:
+        # Create embeds with fishing stats to send
+        embed = DiscordEmbed(title='Progress Report', description='Fishing Assistant Progress Report', color='03b2f8')
+        embed.add_embed_field('Time Ran:', time_ran)
+        embed.add_embed_field('Estimated Gold Earned:', gold_earned)
+        embed.add_embed_field('Rods Cast:', rods_cast)
+        embed.add_embed_field('Fish Caught:', fish_caught)
+        embed.add_embed_field('No catch casts:', no_fish_casts)
+        embed.add_embed_field('Bait Used:', bait_used)
+        # Create webhook and send it
+        webhook = DiscordWebhook(url=WEBHOOK_URL, rate_limit_retry=True)
+        # Add game screenshot to embed
+        import mss.tools
+        mss.tools.to_png(game_screenshot.rgb, game_screenshot.size, output='game_screenshot.png')
+        with open("game_screenshot.png", "rb") as f:
+            webhook.add_file(file=f.read(), filename='game_screenshot.png')
+        embed.set_thumbnail(url='attachment://game_screenshot.png')
+        webhook.add_embed(embed)
+        response = webhook.execute()
 
 
 def catch_fish(bobber_box):
@@ -196,29 +249,40 @@ def catch_fish(bobber_box):
                 logger.debug(f'Checking if {location[1]} - {average_y_value} >= {DIP_THRESHOLD}')
                 if (location[1] - average_y_value >= DIP_THRESHOLD):
                     click_mouse()
-                    break
-        if DEBUG:
-            cv.imshow('bobber debug', screenshot)
-            key = cv.waitKey(1)
-            if key == ord('q'):
-                cv.destroyAllWindows()
-                sys.exit()
+                    return True
+            if DEBUG:
+                cv.imshow('bobber debug', screenshot)
+                key = cv.waitKey(1)
+                if key == ord('q'):
+                    cv.destroyAllWindows()
+                    sys.exit()
+    # Hit TIMEOUT_THRESHOLD
+    return False
 
 
-def main():
-    if not DEBUG:
-        # Set log level to INFO
-        logger.remove()
-        logger.add(sys.stderr, level="INFO")
+start_time = datetime.now()
+if not DEBUG:
+    # Set log level to INFO
+    logger.remove()
+    logger.add(sys.stderr, level="INFO")
 
-    if AUTO_VENDOR_ENABLED:
-        vendor_time = datetime.now()
+# Start auto vendor timer if enabled
+if AUTO_VENDOR_ENABLED:
+    vendor_time = start_time
 
-    logger.info('Setting game window to foreground.')
-    SetForegroundWindow(game_window_handle)
-    # Wait for game window to enter foreground before starting to fish
-    time.sleep(1)
-    while True:
+logger.info('Setting game window to foreground.')
+SetForegroundWindow(game_window_handle)
+# Wait for game window to enter foreground before starting to fish
+time.sleep(1)
+while True:  
+    # Cast fishing rod
+    press_key(FISHING_HOTKEY)
+    rods_cast += 1
+    # Wait for bobber to appear
+    time.sleep(2 + random.uniform(REACTION_TIME_RANGE[0], REACTION_TIME_RANGE[1]))
+    with mss() as sct:
+        # Grab Screenshot of game window
+        screenshot = sct.grab(game_window_rect)
         if AUTO_VENDOR_ENABLED:
             # Check if it's time to get on vendor mount to sell gray items
             time_since_vendor = get_duration(then=vendor_time, now=datetime.now(), interval='minutes')
@@ -226,37 +290,34 @@ def main():
                 logger.info('Now vendoring trash...')
                 # time.sleep(5)
                 auto_vendor(mammoth_hotkey, target_hotkey, interact_hotkey)
-                vendor_time = datetime.now()            
-        # Cast fishing rod
-        press_key(FISHING_HOTKEY)
-        # Wait for bobber to appear
-        time.sleep(2 + random.uniform(REACTION_TIME_RANGE[0], REACTION_TIME_RANGE[1]))
-        with mss() as sct:
-            # Grab Screenshot of game window
-            screenshot = sct.grab(game_window_rect)
-            screenshot = cv.cvtColor(np.array(screenshot), cv.COLOR_BGR2GRAY)
-            # Check game for bobber
-            confidence, location = find_bobber(screenshot, template)
-            logger.debug(f'Confidence: {confidence}')
-            # Show Game window if DEBUG is enabled
-            if DEBUG:
-                cv.imshow('WoW Debug', screenshot)
-                key = cv.waitKey(1)
-                if key == ord('q'):
-                    cv.destroyAllWindows()
-                    sys.exit()
-            # Check if the match is above our confidence threshold
-            if confidence >= MIN_CONFIDENCE:
-                logger.success(f"Bobber Found | Confidence: {confidence} | location: {location}")
-                # Get box coordinates to watch around bobber
-                bobber_box = get_bobber_box(location)
-                # Get screen coords of new bobber
-                screen_coords = translate_coords(location)
-                # Move mouse to bobber
-                logger.success(f'Moving mouse to: location: {location} | screen_coords: {screen_coords}')
-                move_mouse(screen_coords[0], screen_coords[1])
-                # Wait for catch
-                catch_fish(bobber_box)
-
-
-main()
+                vendor_time = datetime.now()
+                # Print progress report / stats
+                send_stats(start_time, fish_caught, no_fish_casts, rods_cast, bait_used, sct.grab(game_window_rect))
+        # Convert screenshot to gray for image matching
+        screenshot = cv.cvtColor(np.array(screenshot), cv.COLOR_BGR2GRAY)
+        # Check game for bobber
+        confidence, location = find_bobber(screenshot, template)
+        logger.debug(f'Confidence: {confidence}')
+        # Show Game window if DEBUG is enabled
+        if DEBUG:
+            cv.imshow('WoW Debug', screenshot)
+            key = cv.waitKey(1)
+            if key == ord('q'):
+                cv.destroyAllWindows()
+                sys.exit()
+        # Check if the match is above our confidence threshold
+        if confidence >= MIN_CONFIDENCE:
+            logger.success(f"Bobber Found | Confidence: {confidence} | location: {location}")
+            # Get box coordinates to watch around bobber
+            bobber_box = get_bobber_box(location)
+            # Get screen coords of new bobber
+            screen_coords = translate_coords(location)
+            # Move mouse to bobber
+            logger.success(f'Moving mouse to: location: {location} | screen_coords: {screen_coords}')
+            move_mouse(screen_coords[0], screen_coords[1])
+            # Wait for catch
+            if (catch_fish(bobber_box)):
+                fish_caught += 1
+            else:
+                logger.warning('Failed to get catch.')
+                no_fish_casts += 1
