@@ -35,6 +35,19 @@ w, h = template.shape[::-1]
 # Fishing variables #
 #####################
 
+######################
+# Shopping variables #
+######################
+AUTO_VENDOR_ENABLED = True
+mammoth_hotkey = 'f1'
+target_hotkey = 'f2'
+interact_hotkey = 'f3'
+vendor_interval = 60  # Minutes between selling trash items
+######################
+# Shopping variables #
+######################
+
+
 #########################
 # Game Client Variables #
 #########################
@@ -125,6 +138,35 @@ def press_key(key):
         pass
 
 
+def auto_vendor(mammoth_hotkey, target_hotkey, interact_hotkey):
+    """Vendors non-valuable fish via mount. Only tested with traveler's tundra mammoth and 'Vendor' addon."""
+    logger.info('Starting auto vendor')
+    # Get on mount
+    logger.debug('getting on mount')
+    press_key(mammoth_hotkey)
+    time.sleep(3 + random.random())
+    # Target shop npc with target macro
+    logger.debug('targetting npc')
+    press_key(target_hotkey)
+    time.sleep(1 + random.random())
+    # Interact with target
+    logger.debug('interacting with npc / opening shop')
+    press_key(interact_hotkey)
+    time.sleep(1 + random.random())
+    # Vendor addon should now sell all of the non-valuable fish
+    logger.debug('Sleeping while Vendor addon sells trash')
+    time.sleep(5 + random.random())
+    # Close shop window
+    logger.debug('closing shop window')
+    press_key('esc')  # escape
+    time.sleep(2 + random.random())
+    # Close shop window
+    logger.debug('deselect target')
+    press_key('esc')  # escape
+    time.sleep(2 + random.random())
+
+
+
 def catch_fish(bobber_box):
     """Watches for change in bobber_y position and clicks when over threshold."""
     logger.info('Watching for catch')
@@ -169,11 +211,22 @@ def main():
         logger.remove()
         logger.add(sys.stderr, level="INFO")
 
+    if AUTO_VENDOR_ENABLED:
+        vendor_time = datetime.now()
+
     logger.info('Setting game window to foreground.')
     SetForegroundWindow(game_window_handle)
     # Wait for game window to enter foreground before starting to fish
     time.sleep(1)
     while True:
+        if AUTO_VENDOR_ENABLED:
+            # Check if it's time to get on vendor mount to sell gray items
+            time_since_vendor = get_duration(then=vendor_time, now=datetime.now(), interval='minutes')
+            if time_since_vendor >= vendor_interval:
+                logger.info('Now vendoring trash...')
+                # time.sleep(5)
+                auto_vendor(mammoth_hotkey, target_hotkey, interact_hotkey)
+                vendor_time = datetime.now()            
         # Cast fishing rod
         press_key(FISHING_HOTKEY)
         # Wait for bobber to appear

@@ -23,10 +23,14 @@ Fishing bot for WoW Dragonflight
 * `template` - image of bobber to match against. 
 * * Check images in repo for examples.
 * * Adjust to area that you're fishing in.
+# # # Auto Vendor
+* * `AUTO_VENDOR_ENABLED = True` - Enable or disable auto vendor feature
+* * `mount_hotkey = 'f1'` - Hotkey to get on vendor mount
+* * `target_hotkey = 'f2'` - Hotkey with `/target Gnimo` macro
+* * `interact_hotkey = 'f3'` - Hotkey bound to - in-game options -> Gameplay -> keybindings -> targetting -> interact with target
 
 # In-game Settings
 * I don't think it should matter to much but in testing I had the preset graphics slider set to 1/lowest.
-
 
 # Running Script
 * Open cmd / terminal in current folder (`shift + right-click` -> `Open Powershell window here`)
