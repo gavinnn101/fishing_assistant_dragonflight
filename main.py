@@ -16,6 +16,7 @@ from util import get_duration
 # User Variables #
 ##################
 DEBUG = True
+REACTION_TIME_RANGE = (0.170, 0.350)  # Random sleep between these two numbers
 INPUT_METHOD = 'virtual'
 FISHING_HOTKEY = 'z'
 MIN_CONFIDENCE = 0.50
@@ -85,12 +86,12 @@ def translate_coords(coords):
 def move_mouse(x,y):
     """Moves cursor to x,y on screen."""
     if INPUT_METHOD == 'virtual':
-        time.sleep(random.random())
+        time.sleep(random.uniform(REACTION_TIME_RANGE[0], REACTION_TIME_RANGE[1]))
         try:
             mouse.move(x,y)
         except Exception:
             logger.warning('Failed to move mouse')
-        time.sleep(random.random())
+        time.sleep(random.uniform(REACTION_TIME_RANGE[0], REACTION_TIME_RANGE[1]))
     elif INPUT_METHOD == 'interception':
         pass
     elif INPUT_METHOD == 'arduino':
@@ -99,12 +100,12 @@ def move_mouse(x,y):
 def click_mouse():
     """Clicks mouse at current location."""
     if INPUT_METHOD == 'virtual':
-        time.sleep(1 + random.random())
+        time.sleep(1 + random.uniform(REACTION_TIME_RANGE[0], REACTION_TIME_RANGE[1]))
         try:
             mouse.click()
         except Exception:
             logger.warning('Failed to click mouse')
-        time.sleep(1 + random.random())
+        time.sleep(1 + random.uniform(REACTION_TIME_RANGE[0], REACTION_TIME_RANGE[1]))
     elif INPUT_METHOD == 'interception':
         pass
     elif INPUT_METHOD == 'arduino':
@@ -116,7 +117,7 @@ def press_key(key):
     logger.info(f'Pressing key: {key}')
     if INPUT_METHOD == 'virtual':
         pg.keyDown(key)
-        time.sleep(random.random())
+        time.sleep(random.uniform(REACTION_TIME_RANGE[0], REACTION_TIME_RANGE[1]))
         pg.keyUp(key)
     elif INPUT_METHOD == 'interception':
         pass
@@ -176,7 +177,7 @@ def main():
         # Cast fishing rod
         press_key(FISHING_HOTKEY)
         # Wait for bobber to appear
-        time.sleep(2 + random.random())
+        time.sleep(2 + random.uniform(REACTION_TIME_RANGE[0], REACTION_TIME_RANGE[1]))
         with mss() as sct:
             # Grab Screenshot of game window
             screenshot = sct.grab(game_window_rect)
