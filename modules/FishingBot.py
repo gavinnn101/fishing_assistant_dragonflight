@@ -162,6 +162,7 @@ class FishingBot():
                         self.vendor_time = datetime.now()
                         # Print progress report / stats
                         self.send_stats(sct.grab(self.game_window_rect))
+                        continue  # Start at beginning of loop so we cast our rod
                 # Convert screenshot to gray for image matching
                 screenshot = cv.cvtColor(np.array(screenshot), cv.COLOR_BGR2GRAY)
                 # Check game for bobber
