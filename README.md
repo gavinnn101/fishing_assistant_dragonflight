@@ -38,3 +38,8 @@ Fishing bot for WoW Dragonflight
 * Do a test fishing cast and make sure bobbers are near middle of game window.
 * Might be beneficial to hide UI while fishing with `alt+z`
 * Run this in terminal window: `python main.py`
+
+# Setting up interception driver
+* Open a terminal AS ADMIN in the interception installer location `fishing_assistant\Interception\command line installer`
+* * Run: `.\install-interception.exe /install`
+* * Must reboot the computer/vm after.

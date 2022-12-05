@@ -10,7 +10,7 @@ from mss import mss
 from win32gui import FindWindow, GetWindowRect, GetClientRect, SetForegroundWindow
 
 from modules.InputHelper import InputHelper
-from util import get_duration
+from utility.util import get_duration
 
 class FishingBot():
     """Class to handle in-game fishing automation."""
