@@ -23,7 +23,8 @@ class FishingBot():
             self.settings_helper.settings['user'].getfloat('reaction_time_upper')
             )
         # Initialize input helper
-        self.input_helper = InputHelper('virtual', self.REACTION_TIME_RANGE)
+        self.input_helper = InputHelper(self.settings_helper.settings['user']['input_method'],
+                                        self.REACTION_TIME_RANGE)
         # Bobber template
         self.template_name = self.settings_helper.settings['user'].get('bobber_image_name')
         self.template_path = f'templates\\{self.template_name}'
