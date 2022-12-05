@@ -1,6 +1,7 @@
 # Custom added stuff
 .idea
-settings/settings.ini
+settings/
+templates/
 game_screenshot.png
 
 # Byte-compiled / optimized / DLL files
