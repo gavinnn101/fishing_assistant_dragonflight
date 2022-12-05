@@ -1,4 +1,9 @@
+# Fishing Assistant - Dragonflight
+Fishing Assistant bot rewritten from scratch for Dragonflight. Cleaner codebase, lighter weight, more stable, more features.
+
+# Table of Contents
 - [Fishing Assistant - Dragonflight](#fishing-assistant---dragonflight)
+- [Table of Contents](#table-of-contents)
 - [Setup](#setup)
   - [Install Requirements](#install-requirements)
   - [Choosing an input method](#choosing-an-input-method)
@@ -10,10 +15,6 @@
     - [Discord Webhook](#discord-webhook)
 - [In-game Settings](#in-game-settings)
 - [Running Script](#running-script)
-
-
-# Fishing Assistant - Dragonflight
-Fishing Assistant bot rewritten from scratch for Dragonflight. Cleaner codebase, lighter weight, more stable, more features.
 
 # Setup
 ## Install Requirements
