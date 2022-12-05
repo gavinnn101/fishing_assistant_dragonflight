@@ -5,10 +5,10 @@ Fishing bot for WoW Dragonflight
 # Setup
 # # Install Requirements
 * Open cmd / terminal in current folder (`shift + right-click` -> `Open Powershell window here`)
-* pip install -r requirements.txt (Only need to do this once.)
+* * Run: `pip install -r requirements.txt` (Only need to do this once.)
 
 # # Script Settings
-* Change settings in main.py
+* Change settings in `settings/settings.ini`
 # # # User Settings
 * * `DEBUG = True` - Enables debug logging and images
 * * `INPUT_METHOD = 'virtual'` - Set input method (virtual/interception/arduino) 
@@ -37,4 +37,9 @@ Fishing bot for WoW Dragonflight
 * Zoom all the way in, in game.
 * Do a test fishing cast and make sure bobbers are near middle of game window.
 * Might be beneficial to hide UI while fishing with `alt+z`
-* Run this in terminal window: `python3 main.py`
+* Run this in terminal window: `python main.py`
+
+# Setting up interception driver
+* Open a terminal AS ADMIN in the interception installer location `fishing_assistant\Interception\command line installer`
+* * Run: `.\install-interception.exe /install`
+* * Must reboot the computer/vm after.
