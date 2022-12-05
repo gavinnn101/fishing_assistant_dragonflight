@@ -8,7 +8,7 @@ Fishing bot for WoW Dragonflight
 * pip install -r requirements.txt (Only need to do this once.)
 
 # # Script Settings
-* Change settings in main.py
+* Change settings in `settings/settings.ini`
 # # # User Settings
 * * `DEBUG = True` - Enables debug logging and images
 * * `INPUT_METHOD = 'virtual'` - Set input method (virtual/interception/arduino) 

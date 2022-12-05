@@ -1,61 +1,18 @@
 import cv2 as cv
+import numpy as np
+import random
+import sys
+import time
 from datetime import datetime
 from discord_webhook import DiscordWebhook, DiscordEmbed
-import numpy as np
-import sys
 from mss import mss
-from pyHM import mouse
-import pyautogui as pg
-from win32gui import FindWindow, GetWindowRect, GetClientRect, SetForegroundWindow
 from loguru import logger
-import random
-import time
+from win32gui import FindWindow, GetWindowRect, GetClientRect, SetForegroundWindow
+
+from modules.InputHelper import InputHelper
+from modules.SettingsHelper import SettingsHelper
 from util import get_duration
 
-
-##################
-# User Variables #
-##################
-DEBUG = True
-REACTION_TIME_RANGE = (0.170, 0.350)  # Random sleep between these two numbers
-INPUT_METHOD = 'virtual'
-FISHING_HOTKEY = 'z'
-MIN_CONFIDENCE = 0.50
-TIMEOUT_THRESHOLD = 20  # Timeout in seconds
-DIP_THRESHOLD = 7  # May need to adjust
-##################
-# User Variables #
-##################
-
-#####################
-# Fishing variables #
-#####################
-template = cv.imread('bobber_dark.png', 0)
-w, h = template.shape[::-1]
-#####################
-# Fishing variables #
-#####################
-
-######################
-# Shopping variables #
-######################
-AUTO_VENDOR_ENABLED = True
-mammoth_hotkey = 'f1'
-target_hotkey = 'f2'
-interact_hotkey = 'f3'
-vendor_interval = 60  # Minutes between selling trash items
-######################
-# Shopping variables #
-######################
-
-###################
-# Discord Webhook #
-###################
-DISCORD_WEBHOOK = False  # Set to True and paste your webhook url below
-WEBHOOK_URL = 'YOURWEBHOOKURLHERE'
-###################
-# Discord Webhook #
-###################
 
 #########################
 # Game Client Variables #
@@ -116,73 +73,31 @@ def translate_coords(coords):
     return (coords[0] + w // 2 + game_window_rect[0], coords[1] + h // 2 + game_window_rect[1])
 
 
-def move_mouse(x,y):
-    """Moves cursor to x,y on screen."""
-    if INPUT_METHOD == 'virtual':
-        time.sleep(random.uniform(REACTION_TIME_RANGE[0], REACTION_TIME_RANGE[1]))
-        try:
-            mouse.move(x,y)
-        except Exception:
-            logger.warning('Failed to move mouse')
-        time.sleep(random.uniform(REACTION_TIME_RANGE[0], REACTION_TIME_RANGE[1]))
-    elif INPUT_METHOD == 'interception':
-        pass
-    elif INPUT_METHOD == 'arduino':
-        pass
-
-def click_mouse():
-    """Clicks mouse at current location."""
-    if INPUT_METHOD == 'virtual':
-        time.sleep(1 + random.uniform(REACTION_TIME_RANGE[0], REACTION_TIME_RANGE[1]))
-        try:
-            mouse.click()
-        except Exception:
-            logger.warning('Failed to click mouse')
-        time.sleep(1 + random.uniform(REACTION_TIME_RANGE[0], REACTION_TIME_RANGE[1]))
-    elif INPUT_METHOD == 'interception':
-        pass
-    elif INPUT_METHOD == 'arduino':
-        pass
-
-
-def press_key(key):
-    """Presses key(board input)."""
-    logger.info(f'Pressing key: {key}')
-    if INPUT_METHOD == 'virtual':
-        pg.keyDown(key)
-        time.sleep(random.uniform(REACTION_TIME_RANGE[0], REACTION_TIME_RANGE[1]))
-        pg.keyUp(key)
-    elif INPUT_METHOD == 'interception':
-        pass
-    elif INPUT_METHOD == 'arduino':
-        pass
-
-
 def auto_vendor(mammoth_hotkey, target_hotkey, interact_hotkey):
     """Vendors non-valuable fish via mount. Only tested with traveler's tundra mammoth and 'Vendor' addon."""
     logger.info('Starting auto vendor')
     # Get on mount
     logger.debug('getting on mount')
-    press_key(mammoth_hotkey)
+    input_helper.press_key(mammoth_hotkey)
     time.sleep(3 + random.random())
     # Target shop npc with target macro
     logger.debug('targetting npc')
-    press_key(target_hotkey)
+    input_helper.press_key(target_hotkey)
     time.sleep(1 + random.random())
     # Interact with target
     logger.debug('interacting with npc / opening shop')
-    press_key(interact_hotkey)
+    input_helper.press_key(interact_hotkey)
     time.sleep(1 + random.random())
     # Vendor addon should now sell all of the non-valuable fish
     logger.debug('Sleeping while Vendor addon sells trash')
     time.sleep(5 + random.random())
     # Close shop window
     logger.debug('closing shop window')
-    press_key('esc')  # escape
+    input_helper.press_key('esc')  # escape
     time.sleep(1 + random.random())
     # Close shop window
     logger.debug('deselect target')
-    press_key('esc')  # escape
+    input_helper.press_key('esc')  # escape
     time.sleep(1 + random.random())
 
 
@@ -199,7 +114,7 @@ def send_stats(start_time, fish_caught, no_fish_casts, rods_cast, bait_used, gam
     logger.success(f'Bait Used: {bait_used}')
     logger.success('-----------------------')
 
-    if DISCORD_WEBHOOK:
+    if settings_helper.settings['webhook'].getboolean('DISCORD_WEBHOOK_ENABLED'):
         # Create embeds with fishing stats to send
         embed = DiscordEmbed(title='Progress Report', description='Fishing Assistant Progress Report', color='03b2f8')
         embed.add_embed_field('Time Ran:', time_ran)
@@ -209,7 +124,7 @@ def send_stats(start_time, fish_caught, no_fish_casts, rods_cast, bait_used, gam
         embed.add_embed_field('No catch casts:', no_fish_casts)
         embed.add_embed_field('Bait Used:', bait_used)
         # Create webhook and send it
-        webhook = DiscordWebhook(url=WEBHOOK_URL, rate_limit_retry=True)
+        webhook = DiscordWebhook(url=settings_helper.settings['webhook']['DISCORD_WEBHOOK_URL'], rate_limit_retry=True)
         # Add game screenshot to embed
         import mss.tools
         mss.tools.to_png(game_screenshot.rgb, game_screenshot.size, output='game_screenshot.png')
@@ -227,8 +142,9 @@ def catch_fish(bobber_box):
     average_y_value = 0
     counter = 0
     total_y = 0
+    DIP_THRESHOLD = settings_helper.settings['user'].getint('dip_threshold')
     box = (translate_coords(bobber_box[0]), translate_coords(bobber_box[1]))
-    while get_duration(then=start_time, now=datetime.now(), interval='seconds') < TIMEOUT_THRESHOLD:
+    while get_duration(then=start_time, now=datetime.now(), interval='seconds') < settings_helper.settings['user'].getint('timeout_threshold'):
         with mss() as sct:
             # Take screenshot of the bobber_box area
             screenshot = sct.grab((box[0][0], box[0][1], box[1][0], box[1][1]))
@@ -241,16 +157,16 @@ def catch_fish(bobber_box):
                 counter += 1
                 total_y += location[1]
                 average_y_value = total_y // counter
-                if DEBUG:
+                if settings_helper.settings['user'].get('debug'):
                     # Draw rectangle around bobber being tracked
                     bottom_right = (location[0] + w, location[1] + h)
                     cv.rectangle(screenshot, location, bottom_right, (0,255,0), 1)
                 # Check if the new bobber_y_value is greater than our difference threshold
                 logger.debug(f'Checking if {location[1]} - {average_y_value} >= {DIP_THRESHOLD}')
                 if (location[1] - average_y_value >= DIP_THRESHOLD):
-                    click_mouse()
+                    input_helper.click_mouse()
                     return True
-            if DEBUG:
+            if settings_helper.settings['user'].get('debug'):
                 cv.imshow('bobber debug', screenshot)
                 key = cv.waitKey(1)
                 if key == ord('q'):
@@ -260,14 +176,30 @@ def catch_fish(bobber_box):
     return False
 
 
+# Initialize SettingsHelper
+settings_helper = SettingsHelper()
+# Get reaction time setting and conver to integers
+REACTION_TIME_RANGE = (
+    settings_helper.settings['user'].getfloat('reaction_time_lower'),
+    settings_helper.settings['user'].getfloat('reaction_time_upper')
+    )
+logger.success(f'Reaction time range: {REACTION_TIME_RANGE}')
+
+# Initialize InputHelper
+input_helper = InputHelper(settings_helper.settings['user'].get('input_method'), REACTION_TIME_RANGE)
+
+# Load bobber template
+template = cv.imread(settings_helper.settings['user'].get('bobber_image_name'), 0)
+w, h = template.shape[::-1]
+
 start_time = datetime.now()
-if not DEBUG:
+if not settings_helper.settings['user'].get('debug'):
     # Set log level to INFO
     logger.remove()
     logger.add(sys.stderr, level="INFO")
 
 # Start auto vendor timer if enabled
-if AUTO_VENDOR_ENABLED:
+if settings_helper.settings['vendor'].get('auto_vendor_enabled'):
     vendor_time = start_time
 
 logger.info('Setting game window to foreground.')
@@ -276,20 +208,24 @@ SetForegroundWindow(game_window_handle)
 time.sleep(1)
 while True:  
     # Cast fishing rod
-    press_key(FISHING_HOTKEY)
+    input_helper.press_key(settings_helper.settings['user'].get('fishing_hotkey'))
     rods_cast += 1
     # Wait for bobber to appear
     time.sleep(2 + random.uniform(REACTION_TIME_RANGE[0], REACTION_TIME_RANGE[1]))
     with mss() as sct:
         # Grab Screenshot of game window
         screenshot = sct.grab(game_window_rect)
-        if AUTO_VENDOR_ENABLED:
+        if settings_helper.settings['vendor'].get('auto_vendor_enabled'):
             # Check if it's time to get on vendor mount to sell gray items
             time_since_vendor = get_duration(then=vendor_time, now=datetime.now(), interval='minutes')
-            if time_since_vendor >= vendor_interval:
+            if time_since_vendor >= settings_helper.settings['vendor'].getint('vendor_interval'):
                 logger.info('Now vendoring trash...')
                 # time.sleep(5)
-                auto_vendor(mammoth_hotkey, target_hotkey, interact_hotkey)
+                auto_vendor(
+                    settings_helper.settings['vendor'].get('mammoth_hotkey'),
+                    settings_helper.settings['vendor'].get('target_hotkey'),
+                    settings_helper.settings['vendor'].get('interact_hotkey')
+                    )
                 vendor_time = datetime.now()
                 # Print progress report / stats
                 send_stats(start_time, fish_caught, no_fish_casts, rods_cast, bait_used, sct.grab(game_window_rect))
@@ -299,14 +235,14 @@ while True:
         confidence, location = find_bobber(screenshot, template)
         logger.debug(f'Confidence: {confidence}')
         # Show Game window if DEBUG is enabled
-        if DEBUG:
+        if settings_helper.settings['user'].get('debug'):
             cv.imshow('WoW Debug', screenshot)
             key = cv.waitKey(1)
             if key == ord('q'):
                 cv.destroyAllWindows()
                 sys.exit()
         # Check if the match is above our confidence threshold
-        if confidence >= MIN_CONFIDENCE:
+        if confidence >= settings_helper.settings['user'].getfloat('min_confidence'):
             logger.success(f"Bobber Found | Confidence: {confidence} | location: {location}")
             # Get box coordinates to watch around bobber
             bobber_box = get_bobber_box(location)
@@ -314,7 +250,7 @@ while True:
             screen_coords = translate_coords(location)
             # Move mouse to bobber
             logger.success(f'Moving mouse to: location: {location} | screen_coords: {screen_coords}')
-            move_mouse(screen_coords[0], screen_coords[1])
+            input_helper.move_mouse(screen_coords[0], screen_coords[1])
             # Wait for catch
             if (catch_fish(bobber_box)):
                 fish_caught += 1
