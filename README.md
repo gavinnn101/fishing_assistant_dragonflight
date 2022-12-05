@@ -1,45 +1,78 @@
-# wow_fisher_df
-Fishing bot for WoW Dragonflight
+- [Fishing Assistant - Dragonflight](#fishing-assistant---dragonflight)
+- [Setup](#setup)
+  - [Install Requirements](#install-requirements)
+  - [Choosing an input method](#choosing-an-input-method)
+  - [Setting up interception driver input](#setting-up-interception-driver-input)
+  - [Setting up arduino hardware input](#setting-up-arduino-hardware-input)
+  - [Script Settings](#script-settings)
+    - [User Settings](#user-settings)
+    - [Auto Vendor](#auto-vendor)
+    - [Discord Webhook](#discord-webhook)
+- [In-game Settings](#in-game-settings)
+- [Running Script](#running-script)
 
+
+# Fishing Assistant - Dragonflight
+Fishing Assistant bot rewritten from scratch for Dragonflight. Cleaner codebase, lighter weight, more stable, more features.
 
 # Setup
-# # Install Requirements
+## Install Requirements
 * Open cmd / terminal in current folder (`shift + right-click` -> `Open Powershell window here`)
-* * Run: `pip install -r requirements.txt` (Only need to do this once.)
+* pip install -r requirements.txt (Only need to do this once.)
 
-# # Script Settings
-* Change settings in `settings/settings.ini`
-# # # User Settings
-* * `DEBUG = True` - Enables debug logging and images
-* * `INPUT_METHOD = 'virtual'` - Set input method (virtual/interception/arduino) 
+## Choosing an input method
+* `virtual` - Can be used by just installing the requirements from above. Least safe method.
+* `interception` - Input driver that needs to be installed to the system. Should be safer than `virtual`.
+* * Some games / anti-cheats may block you from playing with this installed, like faceit.
+* `arduino` - Hardware that can send input to the system that looks like a real hardware device (or your mouse if descriptors are changed.)
+* * Not yet added.
+* * Will require arduino leonardo, host shield, and usb hub (2 ports)
+
+## Setting up interception driver input
+* This isn't required but should be safer to use than `virtual` input. 
+* * Optionally proceed with installation steps and change the `input_method` in settings.ini to `interception`
+* Open cmd / terminal in `fishing_assistant\Interception\command line installer` (`shift + right-click` -> `Open Powershell window here`)
+* * Run: `.\install-interception.exe /install`
+* * Must reboot the computer/vm after.
+
+## Setting up arduino hardware input
+* Coming soon(tm)
+
+## Script Settings
+* Change appropriate user settings in `settings/settings.ini`
+
+### User Settings
+* * `debug = True` - Enables debug logging and images
+* * `input_method = virtual` - Set input method (virtual/interception/arduino) 
 * * * (safest: arduino > interception > virtual)
-* * `FISHING_HOTKEY = 'z'` - In-game hotkey with your fishing ability.
-* * `MIN_CONFIDENCE = 0.50` - Confidence needed to find bobber. 
+* * `fishing_hotkey = z` - In-game hotkey with your fishing ability.
+* * `min_confidence = 0.50` - Confidence needed to find bobber. 
 * * * Lower if it cant find the bobber.
 * * * Higher if mouse moving to spots where the bobber isn't.
-* * `TIMEOUT_THRESHOLD = 20`  - Timeout in seconds before casting new rod, if we didn't find a catch.
-* * `DIP_THRESHOLD = 7`  - amount of y pixels deviated from average before deciding the movement means there was a catch.
-# # # Fishing Settings
-* `template` - image of bobber to match against. 
-* * Check images in repo for examples.
-* * Adjust to area that you're fishing in.
-# # # Auto Vendor
-* * `AUTO_VENDOR_ENABLED = True` - Enable or disable auto vendor feature
-* * `mount_hotkey = 'f1'` - Hotkey to get on vendor mount
-* * `target_hotkey = 'f2'` - Hotkey with `/target Gnimo` macro
-* * `interact_hotkey = 'f3'` - Hotkey bound to - in-game options -> Gameplay -> keybindings -> targetting -> interact with target
+* * `timeout_threshold = 20`  - Timeout in seconds before casting new rod, if we didn't find a catch.
+* * `dip_threshold = 7`  - amount of y pixels deviated from average before deciding the movement means there was a catch.
+* * `bobber_image_name = bobber_blue.png` - Name of file for your bobber image
+* * * You should update the bobber image to your own or it may not find the bobber very well.
+* * * Make it similar to example templates in size / whats shown in the image.
+
+### Auto Vendor
+* * `auto_vendor_enabled = True` - Enable or disable auto vendor feature
+* * `mount_hotkey = f1` - Hotkey to get on vendor mount
+* * `target_hotkey = f2` - Hotkey with `/target Gnimo` macro
+* * `interact_hotkey = f3` - Hotkey bound to - in-game options -> Gameplay -> keybindings -> targetting -> interact with target
+
+### Discord Webhook
+* `discord_webhook_enabled = False` - Set to `True` to enable sending progress reports via webhook.
+* * Must have a valid webhook url!
+* `discord_webhook_url = webhook_url_goes_here` - Paste your discord webhook's url here.
 
 # In-game Settings
 * I don't think it should matter to much but in testing I had the preset graphics slider set to 1/lowest.
 
 # Running Script
-* Open cmd / terminal in current folder (`shift + right-click` -> `Open Powershell window here`)
 * Zoom all the way in, in game.
 * Do a test fishing cast and make sure bobbers are near middle of game window.
-* Might be beneficial to hide UI while fishing with `alt+z`
-* Run this in terminal window: `python main.py`
-
-# Setting up interception driver
-* Open a terminal AS ADMIN in the interception installer location `fishing_assistant\Interception\command line installer`
-* * Run: `.\install-interception.exe /install`
-* * Must reboot the computer/vm after.
+* * Having debug enabled will show the area of interest window if you need help.
+* It is beneficial to hide UI while fishing with `alt+z`
+* Open cmd / terminal in current folder (`shift + right-click` -> `Open Powershell window here`)
+* * Run this in terminal window: `python main.py`
