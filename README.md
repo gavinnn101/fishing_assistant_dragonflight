@@ -5,7 +5,7 @@ Fishing bot for WoW Dragonflight
 # Setup
 # # Install Requirements
 * Open cmd / terminal in current folder (`shift + right-click` -> `Open Powershell window here`)
-* pip install -r requirements.txt (Only need to do this once.)
+* * Run: `pip install -r requirements.txt` (Only need to do this once.)
 
 # # Script Settings
 * Change settings in `settings/settings.ini`
