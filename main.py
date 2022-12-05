@@ -17,3 +17,4 @@ fishing_bot = FishingBot(settings_helper=settings_helper)
 
 # Start fishing bot (this will loop forever)
 fishing_bot.run_fish_loop()
+i

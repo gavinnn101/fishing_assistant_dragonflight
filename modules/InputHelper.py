@@ -69,25 +69,32 @@ class InputHelper:
     def get_driver_mouse(self):
         """Returns the first mouse device"""
         # loop through all devices and return the first mouse.
-        mouse = 0
+        mouse = None
         for i in range(MAX_DEVICES):
             if interception.is_mouse(i):
+                logger.success(f'Found mouse: {i}')
                 mouse = i
                 return mouse
-
         # exit if we can't find a mouse.
-        if (mouse == 0):
-            logger.critical("No mouse found. Contact Gavin and disable the driver.")
-            exit(0)
+        if (mouse == None):
+            logger.critical("No mouse found. Contact Gavin and change input method.")
+            exit(1)
 
 
     def get_driver_keyboard(self):
         """Returns the first keyboard device"""
+        keyboard = None
         # loop through all devices and return the first keyboard.
         for i in range(MAX_DEVICES):
+            logger.debug(i)
             if interception.is_keyboard(i):
+                logger.success(f'Found keyboard: {i}')
                 keyboard = i
-                return keyboard 
+                return keyboard
+        # Exit if we can't find a keyboard.
+        if (keyboard == None):
+            logger.critical("No keyboard found. Contact Gavin and change input method.")
+            exit(2)
 
 
     def move_mouse_driver(self, x, y):
