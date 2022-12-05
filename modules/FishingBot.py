@@ -9,7 +9,6 @@ from loguru import logger
 from mss import mss
 from win32gui import FindWindow, GetWindowRect, GetClientRect, SetForegroundWindow
 
-from modules.SettingsHelper import SettingsHelper
 from modules.InputHelper import InputHelper
 from util import get_duration
 
@@ -26,7 +25,9 @@ class FishingBot():
         # Initialize input helper
         self.input_helper = InputHelper('virtual', self.REACTION_TIME_RANGE)
         # Bobber template
-        self.bobber_template = cv.imread(self.settings_helper.settings['user'].get('bobber_image_name'), 0)
+        self.template_name = self.settings_helper.settings['user'].get('bobber_image_name')
+        self.template_path = f'templates\\{self.template_name}'
+        self.bobber_template = cv.imread(self.template_path, 0)
         self.w, self.h = self.bobber_template.shape[::-1]
         # Initialize fishing stats
         self.fish_caught = 0

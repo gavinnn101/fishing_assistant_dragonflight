@@ -1,5 +1,7 @@
 # Custom added stuff
 .idea
+settings/settings.ini
+game_screenshot.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

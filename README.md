@@ -37,4 +37,4 @@ Fishing bot for WoW Dragonflight
 * Zoom all the way in, in game.
 * Do a test fishing cast and make sure bobbers are near middle of game window.
 * Might be beneficial to hide UI while fishing with `alt+z`
-* Run this in terminal window: `python3 main.py`
+* Run this in terminal window: `python main.py`
