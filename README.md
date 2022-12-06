@@ -66,6 +66,8 @@ Fishing Assistant bot rewritten from scratch for Dragonflight. Cleaner codebase,
 * * `account_password = account_password_here` - The way the bot launches the game doesn't auto log you in so you need to save your password. It's only stored locally in this file.
 * * * It expects you've already launched the game from wow_path and saved the account login.
 * * * If you load the game from wow_path it should only require you to type your password and hit enter to login.
+* * `playtime_duration_range = 30,50` - Random time in this range to fish before taking a break.
+* * `break_duration_range = 2,10` - Random time in this range to stay logged out for your break.
 
 ### Auto Vendor
 * * `auto_vendor_enabled = True` - Enable or disable auto vendor feature
