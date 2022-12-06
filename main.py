@@ -15,6 +15,6 @@ if not settings_helper.settings['user'].get('debug'):
 # Initialize Fishing Bot
 fishing_bot = FishingBot(settings_helper=settings_helper)
 
-# Start fishing bot (this will loop forever)
-fishing_bot.run_fish_loop()
-i
+# Start bot
+# bot class checks for breaks and input method internally
+fishing_bot.run()

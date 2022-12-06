@@ -9,14 +9,18 @@ from loguru import logger
 from mss import mss
 from win32gui import FindWindow, GetWindowRect, GetClientRect, SetForegroundWindow
 
+from modules.BreakHelper import BreakHelper
 from modules.InputHelper import InputHelper
 from utility.util import get_duration
 
 class FishingBot():
+    stopped = True
     """Class to handle in-game fishing automation."""
     def __init__(self, settings_helper, *args, **kwargs):
         # Initialize settings helper
         self.settings_helper = settings_helper
+        # Get webhook url
+        self.webhook_url = self.settings_helper.settings['webhook']['DISCORD_WEBHOOK_URL']
         # Get reaction time settings
         self.REACTION_TIME_RANGE = (
             self.settings_helper.settings['user'].getfloat('reaction_time_lower'),
@@ -25,8 +29,11 @@ class FishingBot():
         # Initialize input helper
         self.input_helper = InputHelper(self.settings_helper.settings['user']['input_method'],
                                         self.REACTION_TIME_RANGE)
+        # Initialize Break handler
+        self.break_helper = BreakHelper(settings_helper=self.settings_helper, input_helper=self.input_helper)
+        self.breaks_enabled = self.settings_helper.settings['breaks'].getboolean('breaks_enabled')
         # Bobber template
-        self.template_name = self.settings_helper.settings['user'].get('bobber_image_name')
+        self.template_name = self.settings_helper.settings['fishing'].get('bobber_image_name')
         self.template_path = f'templates\\{self.template_name}'
         self.bobber_template = cv.imread(self.template_path, 0)
         self.w, self.h = self.bobber_template.shape[::-1]
@@ -38,7 +45,8 @@ class FishingBot():
         # Set start time of bot
         self.start_time = datetime.now()
         # Start auto vendor timer if enabled
-        if self.settings_helper.settings['vendor'].get('auto_vendor_enabled'):
+        self.auto_vendor_enabled = self.settings_helper.settings['vendor'].get('auto_vendor_enabled')
+        if self.auto_vendor_enabled:
             self.vendor_time = self.start_time
 
         # Game Client Variables
@@ -94,10 +102,10 @@ class FishingBot():
         average_y_value = 0
         counter = 0
         total_y = 0
-        DIP_THRESHOLD = self.settings_helper.settings['user'].getint('dip_threshold')
+        DIP_THRESHOLD = self.settings_helper.settings['fishing'].getint('dip_threshold')
         # Get screen coordinates of bobber box
         box = (self.translate_coords(bobber_box[0]), self.translate_coords(bobber_box[1]))
-        while get_duration(then=start_time, now=datetime.now(), interval='seconds') < self.settings_helper.settings['user'].getint('timeout_threshold'):
+        while get_duration(then=start_time, now=datetime.now(), interval='seconds') < self.settings_helper.settings['fishing'].getint('timeout_threshold'):
             with mss() as sct:
                 # Take screenshot of the bobber_box area
                 screenshot = sct.grab((box[0][0], box[0][1], box[1][0], box[1][1]))
@@ -140,12 +148,12 @@ class FishingBot():
         SetForegroundWindow(self.game_window_handle)
         # Wait for game window to enter foreground before starting to fish
         time.sleep(1)
-        while True:  
+        while not self.break_helper.time_to_break:
             # Cast fishing rod
-            self.input_helper.press_key(self.settings_helper.settings['user'].get('fishing_hotkey'))
+            self.input_helper.press_key(self.settings_helper.settings['fishing'].get('fishing_hotkey'))
             self.rods_cast += 1
             # Wait for bobber to appear
-            time.sleep(2 + random.uniform(self.REACTION_TIME_RANGE[0], self.REACTION_TIME_RANGE[1]))
+            time.sleep(2.5 + random.uniform(self.REACTION_TIME_RANGE[0], self.REACTION_TIME_RANGE[1]))
             with mss() as sct:
                 # Grab Screenshot of game window
                 screenshot = sct.grab(self.game_window_rect)
@@ -177,7 +185,7 @@ class FishingBot():
                         cv.destroyAllWindows()
                         sys.exit()
                 # Check if the match is above our confidence threshold
-                if confidence >= self.settings_helper.settings['user'].getfloat('min_confidence'):
+                if confidence >= self.settings_helper.settings['fishing'].getfloat('min_confidence'):
                     logger.success(f"Bobber Found | Confidence: {confidence} | location: {location}")
                     # Get box coordinates to watch around bobber
                     bobber_box = self.get_bobber_box(location)
@@ -216,10 +224,6 @@ class FishingBot():
         logger.debug('closing shop window')
         self.input_helper.press_key('esc')  # escape
         time.sleep(1 + random.random())
-        # Close shop window
-        logger.debug('deselect target')
-        self.input_helper.press_key('esc')  # escape
-        time.sleep(1 + random.random())
 
 
     def send_stats(self, game_screenshot):
@@ -235,7 +239,7 @@ class FishingBot():
         logger.success(f'Bait Used: {self.bait_used}')
         logger.success('-----------------------')
 
-        if self.settings_helper.settings['webhook'].getboolean('DISCORD_WEBHOOK_ENABLED'):
+        if self.settings_helper.settings['webhook'].getboolean('discord_webhook_enabled'):
             # Create embeds with fishing stats to send
             embed = DiscordEmbed(title='Progress Report', description='Fishing Assistant Progress Report', color='03b2f8')
             embed.add_embed_field('Time Ran:', time_ran)
@@ -245,7 +249,7 @@ class FishingBot():
             embed.add_embed_field('No catch casts:', self.no_fish_casts)
             embed.add_embed_field('Bait Used:', self.bait_used)
             # Create webhook and send it
-            webhook = DiscordWebhook(url=self.settings_helper.settings['webhook']['DISCORD_WEBHOOK_URL'], rate_limit_retry=True)
+            webhook = DiscordWebhook(url=self.webhook_url, rate_limit_retry=True)
             # Add game screenshot to embed
             import mss.tools
             mss.tools.to_png(game_screenshot.rgb, game_screenshot.size, output='game_screenshot.png')
@@ -259,3 +263,35 @@ class FishingBot():
     def translate_coords(self, coords):
         """Translates game coords to screen coords."""
         return (coords[0] + self.w // 2 + self.game_window_rect[0], coords[1] + self.h // 2 + self.game_window_rect[1])
+
+
+    def set_game_window_data(self):
+        """Set new game window data after it's relaunched from a break."""
+        self.game_window_handle = FindWindow(self.game_window_class, self.game_window_name)
+        self.game_window_rect = GetWindowRect(self.game_window_handle)  # left, top, right, bottom
+        self.game_size = GetClientRect(self.game_window_handle)
+
+        # # First set of offsets (30,8) will remove window title bar / border
+        # top_offset = 30
+        # bot_offset = 8
+        # Second set of offsets will only show middle of game window
+        self.top_offset = (self.game_size[2] // 2) - int((0.20 * self.game_size[2]))
+        self.bot_offset = (self.game_size[3] // 2) - int((0.30 * self.game_size[3]))
+        logger.info(f'Full Game Rect: {self.game_window_rect}')
+        self.game_window_rect = (
+            self.game_window_rect[0] + self.bot_offset,
+            self.game_window_rect[1] + self.top_offset,
+            self.game_window_rect[2] - self.bot_offset,
+            self.game_window_rect[3] - self.bot_offset
+        )
+
+    def run(self):
+        self.stopped = False
+        while not self.stopped:
+            if self.breaks_enabled:
+                while not self.break_helper.time_to_break:
+                    self.set_game_window_data()
+                    self.break_helper.start()
+                    self.run_fish_loop()
+            else:
+                self.run_fish_loop()

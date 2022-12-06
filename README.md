@@ -11,6 +11,8 @@ Fishing Assistant bot rewritten from scratch for Dragonflight. Cleaner codebase,
   - [Setting up arduino hardware input](#setting-up-arduino-hardware-input)
   - [Script Settings](#script-settings)
     - [User Settings](#user-settings)
+    - [Fishing](#fishing)
+    - [Breaks](#breaks)
     - [Auto Vendor](#auto-vendor)
     - [Discord Webhook](#discord-webhook)
 - [In-game Settings](#in-game-settings)
@@ -46,6 +48,8 @@ Fishing Assistant bot rewritten from scratch for Dragonflight. Cleaner codebase,
 * * `debug = True` - Enables debug logging and images
 * * `input_method = virtual` - Set input method (virtual/interception/arduino) 
 * * * (safest: arduino > interception > virtual)
+
+### Fishing
 * * `fishing_hotkey = z` - In-game hotkey with your fishing ability.
 * * `min_confidence = 0.50` - Confidence needed to find bobber. 
 * * * Lower if it cant find the bobber.
@@ -55,6 +59,13 @@ Fishing Assistant bot rewritten from scratch for Dragonflight. Cleaner codebase,
 * * `bobber_image_name = bobber_blue.png` - Name of file for your bobber image
 * * * You should update the bobber image to your own or it may not find the bobber very well.
 * * * Make it similar to example templates in size / whats shown in the image.
+
+### Breaks
+* * `breaks_enabled = True` - Enable or disable taking breaks during while botting fishing.
+* * `wow_path = C:\Program Files (x86)\World of Warcraft\_retail_\Wow.exe` - Path to your `World of Warcraft\_retail\Wow.exe`
+* * `account_password = account_password_here` - The way the bot launches the game doesn't auto log you in so you need to save your password. It's only stored locally in this file.
+* * * It expects you've already launched the game from wow_path and saved the account login.
+* * * If you load the game from wow_path it should only require you to type your password and hit enter to login.
 
 ### Auto Vendor
 * * `auto_vendor_enabled = True` - Enable or disable auto vendor feature
