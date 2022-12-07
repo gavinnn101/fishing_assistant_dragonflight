@@ -75,7 +75,7 @@ class BreakHelper():
         # Notify that we're about to take a break
         break_msg = f'Break Notification: Taking a break for: {break_time} minutes.'
         logger.info(break_msg)
-        if self.settings_helper.settings['webhook']['discord_webhook_enabled']:
+        if self.settings_helper.settings['webhook'].getboolean('discord_webhook_enabled'):
             webhook = DiscordWebhook(
             url=self.webhook_url,
             rate_limit_retry=True,
