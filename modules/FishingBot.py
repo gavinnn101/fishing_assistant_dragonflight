@@ -125,7 +125,7 @@ class FishingBot():
                         cv.rectangle(screenshot, location, bottom_right, (0,255,0), 1)
                     # Check if the new bobber_y_value is greater than our difference threshold
                     logger.debug(f'Checking if {location[1]} - {average_y_value} >= {DIP_THRESHOLD}')
-                    if (location[1] - average_y_value >= DIP_THRESHOLD):
+                    if (abs(location[1] - average_y_value) >= DIP_THRESHOLD):
                         # Change in y position > threshold so we're going to click the bobber / catch the fish.
                         self.input_helper.click_mouse()
                         return True

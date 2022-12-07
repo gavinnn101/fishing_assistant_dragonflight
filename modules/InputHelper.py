@@ -21,6 +21,22 @@ class InputHelper:
             self.screen_width = GetSystemMetrics(0)
             self.screen_height = GetSystemMetrics(1)
 
+        # Doesn't seem like there are any keycodes for these natively.
+        self.KEY_MAP = {
+            '!': '1',
+            '@': '2',
+            '#': '3',
+            '$': '4',
+            '%': '5',
+            '^': '6',
+            '&': '7',
+            '*': '8',
+            '(': '9',
+            ')': '0',
+            '-': '_',
+            '=': '+'
+        }
+
 
     def move_mouse(self, x, y):
         """Moves cursor to x,y on screen."""
@@ -130,13 +146,37 @@ class InputHelper:
 
     def press_key_driver(self, hotkey):
         """Presses and releases the provided key"""
-        # Get key code of hotkey to give to driver
-        hotkey = KEYBOARD_MAPPING[hotkey]
+        hotkey_keycode = None
+        # Check if hotkey is a special character requiring `shift + hotkey`
+        if hotkey in self.KEY_MAP.keys():
+            # Get number key that the hotkey maps to.
+            hotkey_without_shift = self.KEY_MAP.get(hotkey)
+            hotkey_keycode = KEYBOARD_MAPPING[hotkey_without_shift]
+        # Check if hotkey is uppercase (requires shift + hotkey)
+        elif hotkey.isupper():
+            hotkey_keycode = KEYBOARD_MAPPING[hotkey.lower()]
+        # If we set hotkey_keycode then we know we need to use `shift`
+        if hotkey_keycode:
+            # Shift key down
+            driver_press = key_stroke(KEYBOARD_MAPPING['shift'], interception_key_state.INTERCEPTION_KEY_DOWN.value, 0)
+            self.driver.send(self.keyboard_driver, driver_press)
+        else:
+            # hotkey_keycode not set so shift isn't required
+            hotkey_keycode = KEYBOARD_MAPPING[hotkey]
         # Key down
-        driver_press = key_stroke(hotkey, interception_key_state.INTERCEPTION_KEY_DOWN.value, 0)
+        driver_press = key_stroke(hotkey_keycode, interception_key_state.INTERCEPTION_KEY_DOWN.value, 0)
         self.driver.send(self.keyboard_driver, driver_press)
         # Add quick sleep so it's not instant
         time.sleep(random.uniform(self.REACTION_TIME_RANGE[0], self.REACTION_TIME_RANGE[1]))
         # Key up
         driver_press.state = interception_key_state.INTERCEPTION_KEY_UP.value
         self.driver.send(self.keyboard_driver, driver_press)
+        # try to release shift key
+        # probably not the best way to do this
+        try:
+            driver_press = key_stroke(KEYBOARD_MAPPING['shift'], interception_key_state.INTERCEPTION_KEY_UP.value, 0)
+            self.driver.send(self.keyboard_driver, driver_press)
+        except Exception:
+            # I imagine we only hit this if shift key isn't pressed down.
+            # Don't have to do anything.
+            pass

@@ -70,7 +70,7 @@ class BreakHelper():
 
     def take_break(self):
         # Get random time in minutes to take a break for
-        lower_bound, upper_bound = self.playtime_duration_range.split(',')
+        lower_bound, upper_bound = self.break_duration_range.split(',')
         break_time = random.randrange(int(lower_bound), int(upper_bound))
         # Notify that we're about to take a break
         break_msg = f'Break Notification: Taking a break for: {break_time} minutes.'
