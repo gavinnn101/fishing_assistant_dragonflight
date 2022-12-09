@@ -302,3 +302,20 @@ class FishingBot():
                     self.run_fish_loop()
             else:
                 self.run_fish_loop()
+
+
+# https://stackoverflow.com/questions/6312627/windows-7-how-to-bring-a-window-to-the-front-no-matter-what-other-window-has-fo/6324105#6324105
+# Sometimes setforegroundwindow gives an error so we'll try this
+import win32gui
+from win32con import (SW_SHOW, SW_RESTORE)
+def get_windows_placement(window_id):
+    return win32gui.GetWindowPlacement(window_id)[1]
+
+
+def set_active_window(window_id):
+    if get_windows_placement(window_id) == 2:
+        win32gui.ShowWindow(window_id, SW_RESTORE)
+    else:
+        win32gui.ShowWindow(window_id, SW_SHOW)
+    win32gui.SetForegroundWindow(window_id)
+    win32gui.SetActiveWindow(window_id)
