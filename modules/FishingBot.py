@@ -7,11 +7,11 @@ from datetime import datetime
 from discord_webhook import DiscordWebhook, DiscordEmbed
 from loguru import logger
 from mss import mss
-from win32gui import FindWindow, GetWindowRect, GetClientRect, ShowWindow, SetForegroundWindow, SetActiveWindow, GetWindowPlacement
+from win32gui import FindWindow, GetWindowRect, GetClientRect
 
 from modules.BreakHelper import BreakHelper
 from modules.InputHelper import InputHelper
-from utility.util import get_duration, set_active_window
+from utility.util import get_duration
 
 
 class FishingBot():
@@ -314,13 +314,10 @@ class FishingBot():
 
 # https://stackoverflow.com/questions/6312627/windows-7-how-to-bring-a-window-to-the-front-no-matter-what-other-window-has-fo/6324105#6324105
 # Sometimes setforegroundwindow gives an error so we'll try this
+from win32gui import GetWindowPlacement, ShowWindow, SetForegroundWindow, SetActiveWindow
 from win32con import (SW_SHOW, SW_RESTORE)
-def get_windows_placement(window_id):
-    return GetWindowPlacement(window_id)[1]
-
-
 def set_active_window(window_id):
-    if get_windows_placement(window_id) == 2:
+    if GetWindowPlacement(window_id)[1] == 2:
         ShowWindow(window_id, SW_RESTORE)
     else:
         ShowWindow(window_id, SW_SHOW)

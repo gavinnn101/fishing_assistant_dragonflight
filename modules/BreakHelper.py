@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 from discord_webhook import DiscordWebhook
 from loguru import logger
-from utility.util import get_duration, set_active_window
+from utility.util import get_duration
 
 
 class BreakHelper():
