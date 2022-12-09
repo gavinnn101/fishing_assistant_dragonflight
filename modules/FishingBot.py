@@ -216,6 +216,8 @@ class FishingBot():
 
     def auto_vendor(self, mammoth_hotkey, target_hotkey, interact_hotkey):
         """Gets on mount, targets shop npc, and opens shop for addon to auto sell trash."""
+        # Don't start a break in the middle of vendoring
+        self.break_helper.break_allowed = False
         logger.info('Starting auto vendor')
         # Get on mount
         logger.debug('getting on mount')
@@ -236,6 +238,8 @@ class FishingBot():
         logger.debug('closing shop window')
         self.input_helper.press_key('esc')  # escape
         time.sleep(1 + random.random())
+        # Unset break flag
+        self.break_helper.break_allowed = True
 
 
     def send_stats(self, game_screenshot):
