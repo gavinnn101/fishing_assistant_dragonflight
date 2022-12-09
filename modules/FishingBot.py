@@ -7,11 +7,12 @@ from datetime import datetime
 from discord_webhook import DiscordWebhook, DiscordEmbed
 from loguru import logger
 from mss import mss
-from win32gui import FindWindow, GetWindowRect, GetClientRect, SetForegroundWindow
+from win32gui import FindWindow, GetWindowRect, GetClientRect, ShowWindow, SetForegroundWindow, SetActiveWindow, GetWindowPlacement
 
 from modules.BreakHelper import BreakHelper
 from modules.InputHelper import InputHelper
-from utility.util import get_duration
+from utility.util import get_duration, set_active_window
+
 
 class FishingBot():
     stopped = True
@@ -106,6 +107,8 @@ class FishingBot():
         
         # Get screen coordinates of bobber box
         box = (self.translate_coords(bobber_box[0]), self.translate_coords(bobber_box[1]))
+        # Don't start a break in the middle of a fishing loop
+        self.break_helper.break_allowed = False
         while get_duration(then=start_time, now=datetime.now(), interval='seconds') < self.settings_helper.settings['fishing'].getint('timeout_threshold'):
             with mss() as sct:
                 # Take screenshot of the bobber_box area
@@ -131,6 +134,7 @@ class FishingBot():
                         self.input_helper.click_mouse()
                         # Sleep for a second so it can finish looting
                         time.sleep(1 + random.random())
+                        self.break_helper.break_allowed = True
                         return True
                 # Display bobber debug window if enabled
                 if self.settings_helper.settings['user'].get('debug'):
@@ -140,6 +144,7 @@ class FishingBot():
                         cv.destroyAllWindows()
                         sys.exit()
         # Hit TIMEOUT_THRESHOLD
+        self.break_helper.break_allowed = True
         return False
 
 
@@ -152,7 +157,7 @@ class FishingBot():
         # Need to send a key to unfocus current window and then set foreground window after..
         self.input_helper.press_key('alt')
         # Bring game client to foreground
-        SetForegroundWindow(self.game_window_handle)
+        set_active_window(self.game_window_handle)
         # Wait for game window to enter foreground before starting to fish
         time.sleep(1)
         while not self.break_helper.time_to_break:
@@ -210,7 +215,7 @@ class FishingBot():
 
 
     def auto_vendor(self, mammoth_hotkey, target_hotkey, interact_hotkey):
-        """Vendors non-valuable fish via mount. Only tested with traveler's tundra mammoth and 'Vendor' addon."""
+        """Gets on mount, targets shop npc, and opens shop for addon to auto sell trash."""
         logger.info('Starting auto vendor')
         # Get on mount
         logger.debug('getting on mount')
@@ -237,6 +242,7 @@ class FishingBot():
         """Prints stats for current run and sends via webhook if enabled."""
         time_ran = get_duration(then=self.start_time, now=datetime.now(), interval='default')
         gold_earned = self.fish_caught * 10
+        # Print progress report to console.
         logger.success('-----------------------')
         logger.success('Progress Report:')
         logger.success(f'Time Ran: {time_ran} minute(s)')
@@ -246,6 +252,7 @@ class FishingBot():
         logger.success(f'Bait Used: {self.bait_used}')
         logger.success('-----------------------')
 
+        # Send a progress report via discord webhook if it's enabled.
         if self.settings_helper.settings['webhook'].getboolean('discord_webhook_enabled'):
             # Create embeds with fishing stats to send
             embed = DiscordEmbed(title='Progress Report', description='Fishing Assistant Progress Report', color='03b2f8')
@@ -292,6 +299,7 @@ class FishingBot():
             self.game_window_rect[3] - self.bot_offset
         )
 
+
     def run(self):
         self.stopped = False
         while not self.stopped:
@@ -306,16 +314,15 @@ class FishingBot():
 
 # https://stackoverflow.com/questions/6312627/windows-7-how-to-bring-a-window-to-the-front-no-matter-what-other-window-has-fo/6324105#6324105
 # Sometimes setforegroundwindow gives an error so we'll try this
-import win32gui
 from win32con import (SW_SHOW, SW_RESTORE)
 def get_windows_placement(window_id):
-    return win32gui.GetWindowPlacement(window_id)[1]
+    return GetWindowPlacement(window_id)[1]
 
 
 def set_active_window(window_id):
     if get_windows_placement(window_id) == 2:
-        win32gui.ShowWindow(window_id, SW_RESTORE)
+        ShowWindow(window_id, SW_RESTORE)
     else:
-        win32gui.ShowWindow(window_id, SW_SHOW)
-    win32gui.SetForegroundWindow(window_id)
-    win32gui.SetActiveWindow(window_id)
+        ShowWindow(window_id, SW_SHOW)
+    SetForegroundWindow(window_id)
+    SetActiveWindow(window_id)
