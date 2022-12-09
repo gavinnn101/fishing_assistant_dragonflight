@@ -42,6 +42,7 @@ class FishingBot():
         self.no_fish_casts = 0
         self.bait_used = 0
         self.rods_cast = 0
+        self.DIP_THRESHOLD = self.settings_helper.settings['fishing'].getint('dip_threshold')
         # Set start time of bot
         self.start_time = datetime.now()
         # Start auto vendor timer if enabled
@@ -102,7 +103,7 @@ class FishingBot():
         average_y_value = 0
         counter = 0
         total_y = 0
-        DIP_THRESHOLD = self.settings_helper.settings['fishing'].getint('dip_threshold')
+        
         # Get screen coordinates of bobber box
         box = (self.translate_coords(bobber_box[0]), self.translate_coords(bobber_box[1]))
         while get_duration(then=start_time, now=datetime.now(), interval='seconds') < self.settings_helper.settings['fishing'].getint('timeout_threshold'):
@@ -124,8 +125,8 @@ class FishingBot():
                         bottom_right = (location[0] + self.w, location[1] + self.h)
                         cv.rectangle(screenshot, location, bottom_right, (0,255,0), 1)
                     # Check if the new bobber_y_value is greater than our difference threshold
-                    logger.debug(f'Checking if {location[1]} - {average_y_value} >= {DIP_THRESHOLD}')
-                    if (abs(location[1] - average_y_value) >= DIP_THRESHOLD):
+                    logger.debug(f'Checking if {location[1]} - {average_y_value} >= {self.DIP_THRESHOLD}')
+                    if (abs(location[1] - average_y_value) >= self.DIP_THRESHOLD):
                         # Change in y position > threshold so we're going to click the bobber / catch the fish.
                         self.input_helper.click_mouse()
                         # Sleep for a second so it can finish looting
