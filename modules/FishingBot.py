@@ -128,6 +128,8 @@ class FishingBot():
                     if (abs(location[1] - average_y_value) >= DIP_THRESHOLD):
                         # Change in y position > threshold so we're going to click the bobber / catch the fish.
                         self.input_helper.click_mouse()
+                        # Sleep for a second so it can finish looting
+                        time.sleep(1 + random.random())
                         return True
                 # Display bobber debug window if enabled
                 if self.settings_helper.settings['user'].get('debug'):
@@ -145,6 +147,10 @@ class FishingBot():
             Need to refactor!
         """
         logger.info('Setting game window to foreground.')
+        # https://stackoverflow.com/questions/14295337/win32gui-setactivewindow-error-the-specified-procedure-could-not-be-found
+        # Need to send a key to unfocus current window and then set foreground window after..
+        self.input_helper.press_key('alt')
+        # Bring game client to foreground
         SetForegroundWindow(self.game_window_handle)
         # Wait for game window to enter foreground before starting to fish
         time.sleep(1)
