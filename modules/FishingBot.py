@@ -153,9 +153,6 @@ class FishingBot():
             Need to refactor!
         """
         logger.info('Setting game window to foreground.')
-        # https://stackoverflow.com/questions/14295337/win32gui-setactivewindow-error-the-specified-procedure-could-not-be-found
-        # Need to send a key to unfocus current window and then set foreground window after..
-        self.input_helper.press_key('alt')
         # Bring game client to foreground
         set_active_window(self.game_window_handle)
         # Wait for game window to enter foreground before starting to fish
