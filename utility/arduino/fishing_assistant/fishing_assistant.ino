@@ -71,10 +71,42 @@ void type_string(JsonObject params) {
 
 
 void mouse_move(JsonObject params) {
-  const char* params_next_x = params["next_x"]; // cursor's next x position
-  const char* params_next_y = params["next_y"]; // cursor's next y position
-  const char* params_current_x = params["current_x"]; // cursor's current x position
-  const char* params_current_y = params["current_y"]; // cursor's current y position
+  int next_x = params["next_x"]; // cursor's next x position
+  int next_y = params["next_y"]; // cursor's next y position
+  int current_x = params["current_x"]; // cursor's current x position
+  int current_y = params["current_y"]; // cursor's current y position
+  // (-128 <-> 127) max values mouse can move in either direction in one call
+  // positive x value moves mouse to the right, negative x value moves mouse to the left.
+  // positive y value moves the mouse down, negative y value moves the mouse up.
+ 
+  // Print our values
+  // Serial.println(next_x);
+  // Serial.println(next_y);
+  // Serial.println(current_x);
+  // Serial.println(current_y);
+
+  // Calculate the distance to move in the x and y directions
+  int deltaX = next_x - current_x;
+  int deltaY = next_y - current_y;
+
+  // Break the movement into smaller steps, if necessary, to stay within the limits of Mouse.move()
+  while (deltaX != 0 || deltaY != 0) {
+    int stepX = deltaX;
+    int stepY = deltaY;
+
+    // Won't work correctl if giving the max values. probably some c++ memory shenanigans
+    if (abs(stepX) > 126) {
+      stepX = (stepX > 0) ? 126 : -127;
+    }
+    if (abs(stepY) > 126) {
+      stepY = (stepY > 0) ? 126 : -127;
+    }
+
+    Mouse.move(stepX, stepY);
+
+    deltaX -= stepX;
+    deltaY -= stepY;
+  }
 }
 
 
