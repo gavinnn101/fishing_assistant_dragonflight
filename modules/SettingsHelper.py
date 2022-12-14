@@ -46,6 +46,8 @@ class SettingsHelper:
             config.set("fishing", "timeout_threshold", "20")
             config.set("fishing", "dip_threshold", "7")
             config.set("fishing", "bobber_image_name", "bobber_dark.png")
+            config.set("fishing", "use_bait", "False")
+            config.set("fishing", "bait_hotkey", "f4")
             # Add break settings to config
             config.set("breaks", "breaks_enabled", "True")
             config.set("breaks", "wow_path", r"C:\Program Files (x86)\World of Warcraft\_retail_\Wow.exe")
@@ -63,6 +65,9 @@ class SettingsHelper:
             config.add_section("webhook")
             config.set("webhook", "discord_webhook_enabled", "False")
             config.set("webhook", "discord_webhook_url", "webhook_url_goes_here")
+            # Add arduino settings to config
+            config.set("arduino", "vid", "2341")
+            config.set("arduino", "pid", "0036")
             with open(settings_path, "w+") as config_file:
                 config.write(config_file)
         # Add settings from settings file to config and return the config

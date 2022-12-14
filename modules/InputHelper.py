@@ -1,5 +1,8 @@
+import json
 import pyautogui as pg
 import random
+import serial
+import sys
 import time
 from pyHM import mouse
 from loguru import logger
@@ -10,9 +13,13 @@ from win32api import GetSystemMetrics
 
 class InputHelper:
     """Wrapper class to handle keyboard/mouse inputs based on input method."""
-    def __init__(self, input_method, reaction_time_range, *args, **kwargs):
-        self.INPUT_METHOD = input_method
-        self.REACTION_TIME_RANGE = reaction_time_range
+    def __init__(self, settings_helper, *args, **kwargs):
+        self.settings_helper = settings_helper
+        self.INPUT_METHOD = self.settings_helper.settings['user'].get('input_method')
+        self.REACTION_TIME_RANGE = (
+            self.settings_helper.settings['user'].getfloat('reaction_time_lower'),
+            self.settings_helper.settings['user'].getfloat('reaction_time_upper')
+            )
 
         if self.INPUT_METHOD == 'interception':
             self.driver = interception()
@@ -20,6 +27,9 @@ class InputHelper:
             self.keyboard_driver = self.get_driver_keyboard()
             self.screen_width = GetSystemMetrics(0)
             self.screen_height = GetSystemMetrics(1)
+
+        if self.INPUT_METHOD == 'arduino':
+            self.arduino_helper = ArduinoHelper(self.settings_helper)
 
         # Doesn't seem like there are any keycodes for these natively.
         self.KEY_MAP = {
@@ -49,9 +59,8 @@ class InputHelper:
             time.sleep(random.uniform(self.REACTION_TIME_RANGE[0], self.REACTION_TIME_RANGE[1]))
         elif self.INPUT_METHOD == 'interception':
             self.move_mouse_driver(x,y)
-            pass
         elif self.INPUT_METHOD == 'arduino':
-            pass
+            self.arduino_helper.move_mouse(x,y)
 
 
     def click_mouse(self):
@@ -66,7 +75,7 @@ class InputHelper:
         elif self.INPUT_METHOD == 'interception':
             self.click_mouse_driver()
         elif self.INPUT_METHOD == 'arduino':
-            pass
+            self.arduino_helper.click_mouse()
 
 
     def press_key(self, key):
@@ -79,7 +88,7 @@ class InputHelper:
         elif self.INPUT_METHOD == 'interception':
             self.press_key_driver(key)
         elif self.INPUT_METHOD == 'arduino':
-            pass
+            self.arduino_helper.type_string(key)
 
 
     def get_driver_mouse(self):
@@ -180,3 +189,62 @@ class InputHelper:
             # I imagine we only hit this if shift key isn't pressed down.
             # Don't have to do anything.
             pass
+
+
+
+class ArduinoHelper:
+    """Handles setting data to arduino over serial to act as mouse/keyboard input."""
+    def __init__(self, settings_helper, *args, **kwargs):
+        self.settings_helper = settings_helper
+        self.vid = self.settings_helper.settings['arduino']['vid']
+        self.pid = self.settings_helper.settings['arduino']['pid']
+        self.arduino = serial.Serial(port=self.get_com_port(), baudrate=115200, timeout=2)
+    
+
+    def get_com_port(self):
+        import serial.tools.list_ports
+        ports = serial.tools.list_ports.comports()
+        for port in ports:
+            # Spoofed arduino doesn't give correct descriptors so can't check name, etc.
+            if f'PID={self.vid}:{self.pid}' in port.hwid:
+                logger.success(f'found device on port {port.device}')
+                return port.device
+        logger.error("Couldn't find device. Make sure it's plugged in with green light. Exiting.")
+        sys.exit("no device found")
+
+
+    def move_mouse(self, x, y):
+        cur_x, cur_y = pg.position()
+        packet = {
+        "event_type": "mouse_move",
+        "params": {
+            "next_x": x,
+            "next_y": y,
+            "current_x": cur_x,
+            "current_y": cur_y,
+            },
+        }
+        packet = json.dumps(packet)
+        self.arduino.write(packet.encode())
+
+
+    def click_mouse(self, right_click = False):
+        packet = {
+            "event_type": "mouse_click",
+            "params": {
+                "right_click": right_click
+            }
+        }
+        packet = json.dumps(packet)
+        self.arduino.write(packet.encode())
+
+
+    def type_string(self, string):
+        packet = {
+            "event_type": "type_string",
+            "params": {
+                "input_string": string
+            }
+        }
+        packet = json.dumps(packet)
+        self.arduino.write(packet.encode())

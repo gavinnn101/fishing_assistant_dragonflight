@@ -28,8 +28,9 @@ Fishing Assistant bot rewritten from scratch for Dragonflight. Cleaner codebase,
 * `interception` - Input driver that needs to be installed to the system. Should be safer than `virtual`.
 * * Some games / anti-cheats may block you from playing with this installed, like faceit.
 * `arduino` - Hardware that can send input to the system that looks like a real hardware device (or your mouse if descriptors are changed.)
-* * Not yet added.
-* * Will require arduino leonardo, host shield, and usb hub (2 ports)
+* * Working!
+* * Currently uses arduino keyboard/mouse libraries for input.
+* * In the future will use host shield to pass through keyboard/mouse
 
 ## Setting up interception driver input
 * This isn't required but should be safer to use than `virtual` input. 
@@ -39,7 +40,15 @@ Fishing Assistant bot rewritten from scratch for Dragonflight. Cleaner codebase,
 * * Must reboot the computer/vm after.
 
 ## Setting up arduino hardware input
-* Coming soon(tm)
+* First time setup:
+* * Upload `/utility/arduino/fishing_assistant.ino` to device
+* * (Recommended) spoof arduino using [this tutorial](https://www.unknowncheats.me/forum/other-hardware/472601-modify-spoof-arduino-hardware-standalone.html)
+* * Set `VID` `PID` of arduino in `settings.ini`
+* * * Default settings will work if not spoofed.
+* After setup:
+* * Plug in arduino to pc
+* * In settings set `input_type` to `arduino`
+* * run bot as normal
 
 ## Script Settings
 * Change appropriate user settings in `settings/settings.ini`

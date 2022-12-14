@@ -28,8 +28,7 @@ class FishingBot():
             self.settings_helper.settings['user'].getfloat('reaction_time_upper')
             )
         # Initialize input helper
-        self.input_helper = InputHelper(self.settings_helper.settings['user']['input_method'],
-                                        self.REACTION_TIME_RANGE)
+        self.input_helper = InputHelper(settings_helper=self.settings_helper)
         # Initialize Break handler
         self.break_helper = BreakHelper(settings_helper=self.settings_helper, input_helper=self.input_helper)
         self.breaks_enabled = self.settings_helper.settings['breaks'].getboolean('breaks_enabled')
@@ -44,6 +43,7 @@ class FishingBot():
         self.bait_used = 0
         self.rods_cast = 0
         self.DIP_THRESHOLD = self.settings_helper.settings['fishing'].getint('dip_threshold')
+        self.time_since_bait = None
         # Set start time of bot
         self.start_time = datetime.now()
         # Start auto vendor timer if enabled
@@ -158,6 +158,14 @@ class FishingBot():
         # Wait for game window to enter foreground before starting to fish
         time.sleep(1)
         while not self.break_helper.time_to_break:
+            # # Check if we should use fishing bait
+            # if self.settings_helper.settings['fishing'].getboolean('use_bait'):
+            #     self.time_since_bait = get_duration(then=self.bait_time, now=datetime.now(), interval='minutes')
+            #     if self.time_since_bait >= 30 or self.time_since_bait == None:  # Fishing bait has expired
+            #         logger.info('Applying fishing bait...')
+            #         self.input_helper.press_key(self.settings_helper.settings['fishing'].get('bait_hotkey'))
+            #         self.bait_used += 1
+            #         self.bait_time = datetime.now()
             # Cast fishing rod
             self.input_helper.press_key(self.settings_helper.settings['fishing'].get('fishing_hotkey'))
             self.rods_cast += 1
