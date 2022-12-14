@@ -7,8 +7,8 @@ Fishing Assistant bot rewritten from scratch for Dragonflight. Cleaner codebase,
 - [Setup](#setup)
   - [Install Requirements](#install-requirements)
   - [Choosing an input method](#choosing-an-input-method)
-  - [Setting up interception driver input](#setting-up-interception-driver-input)
-  - [Setting up arduino hardware input](#setting-up-arduino-hardware-input)
+    - [Setting up interception driver input](#setting-up-interception-driver-input)
+    - [Setting up arduino hardware input](#setting-up-arduino-hardware-input)
   - [Script Settings](#script-settings)
     - [User Settings](#user-settings)
     - [Fishing](#fishing)
@@ -32,14 +32,14 @@ Fishing Assistant bot rewritten from scratch for Dragonflight. Cleaner codebase,
 * * Currently uses arduino keyboard/mouse libraries for input.
 * * In the future will use host shield to pass through keyboard/mouse
 
-## Setting up interception driver input
+### Setting up interception driver input
 * This isn't required but should be safer to use than `virtual` input. 
 * * Optionally proceed with installation steps and change the `input_method` in settings.ini to `interception`
 * Open cmd / terminal in `fishing_assistant\Interception\command line installer` (`shift + right-click` -> `Open Powershell window here`)
 * * Run: `.\install-interception.exe /install`
 * * Must reboot the computer/vm after.
 
-## Setting up arduino hardware input
+### Setting up arduino hardware input
 * First time setup:
 * * Upload `/utility/arduino/fishing_assistant.ino` to device
 * * (Recommended) spoof arduino using [this tutorial](https://www.unknowncheats.me/forum/other-hardware/472601-modify-spoof-arduino-hardware-standalone.html)
