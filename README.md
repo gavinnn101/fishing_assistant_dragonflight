@@ -41,6 +41,7 @@ Fishing Assistant bot rewritten from scratch for Dragonflight. Cleaner codebase,
 
 ### Setting up arduino hardware input
 * First time setup:
+* * Install FTDI VCP drivers at [this link](https://ftdichip.com/drivers/vcp-drivers/) (This should happen automatically when you plug in the arduino but just in case.)
 * * Upload `/utility/arduino/fishing_assistant.ino` to device
 * * (Recommended) spoof arduino using [this tutorial](https://www.unknowncheats.me/forum/other-hardware/472601-modify-spoof-arduino-hardware-standalone.html)
 * * Set `VID` `PID` of arduino in `settings.ini`
