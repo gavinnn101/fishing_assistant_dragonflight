@@ -6,10 +6,6 @@
 const unsigned int LOWER_REACTION = 180;
 const unsigned int UPPER_REACTION = 310;
 
-// Screen resolution for cursor movements
-const unsigned int DISPLAY_WIDTH = 1920;
-const unsigned int DISPLAY_HEIGHT = 1080;
-
 
 void setup() {
   // open the serial port on arduino
@@ -63,10 +59,14 @@ void process_json(StaticJsonDocument<192> d) {
 
 
 void type_string(JsonObject params) {
-  const char* params_input_string = params["input_string"];
-  Serial.print("Typing string: ");
-  Serial.print(params_input_string);
-  Keyboard.print(params_input_string);
+  const char* input_string = params["input_string"];
+  Serial.print("Sending key: ");
+  Serial.print(input_string);
+  if (strcmp(input_string, "enter") == 0) {
+    Keyboard.write(176);
+  } else {
+    Keyboard.print(input_string);
+  }
 }
 
 
@@ -103,6 +103,7 @@ void mouse_move(JsonObject params) {
     }
 
     Mouse.move(stepX, stepY);
+    // Serial.println("Moved mouse");
 
     deltaX -= stepX;
     deltaY -= stepY;
