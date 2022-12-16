@@ -50,6 +50,7 @@ class InputHelper:
 
     def move_mouse(self, x, y):
         """Moves cursor to x,y on screen."""
+        logger.info(f'moving mouse to {x},{y}')
         if self.INPUT_METHOD == 'virtual':
             time.sleep(random.uniform(self.REACTION_TIME_RANGE[0], self.REACTION_TIME_RANGE[1]))
             try:
@@ -65,6 +66,7 @@ class InputHelper:
 
     def click_mouse(self):
         """Clicks mouse at current location."""
+        logger.info('Clicking mouse')
         if self.INPUT_METHOD == 'virtual':
             time.sleep(1 + random.uniform(self.REACTION_TIME_RANGE[0], self.REACTION_TIME_RANGE[1]))
             try:
@@ -241,6 +243,10 @@ class ArduinoHelper:
 
 
     def type_string(self, string):
+        # Convert function key to proper identifier
+        # https://www.arduino.cc/reference/en/language/functions/usb/keyboard/keyboardmodifiers/
+        if 'f' in string.lower() and len(string) == 2:
+            string = f'KEY_{string}'
         packet = {
             "event_type": "type_string",
             "params": {
