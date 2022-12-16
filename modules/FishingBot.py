@@ -170,7 +170,7 @@ class FishingBot():
             self.input_helper.press_key(self.settings_helper.settings['fishing'].get('fishing_hotkey'))
             self.rods_cast += 1
             # Wait for bobber to appear
-            time.sleep(2.5 + random.uniform(self.REACTION_TIME_RANGE[0], self.REACTION_TIME_RANGE[1]))
+            time.sleep(3 + random.uniform(self.REACTION_TIME_RANGE[0], self.REACTION_TIME_RANGE[1]))
             with mss() as sct:
                 # Grab Screenshot of game window
                 screenshot = sct.grab(self.game_window_rect)

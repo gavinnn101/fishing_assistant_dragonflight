@@ -50,8 +50,11 @@ class BreakHelper():
         # Open the game
         path = r"{}".format(self.wow_path)  # format path to raw string
         proc = subprocess.Popen([path])
-        # Give some time for the game to load just in case. No real check to know that we're on the login screen...
-        time.sleep(10)
+        # sleep while game finishes loading...
+        # subprocess.call([path]) should block until process opens but doesn't seem to ever return... Same with subprocess.wait()
+        # Could probably check if a process is open by certain name as a hack
+        logger.info('sleeping 60 seconds after opening game')
+        time.sleep(60)
         logger.debug('Entering password to login')
         password = self.settings_helper.settings['breaks']['account_password']
         for letter in password:

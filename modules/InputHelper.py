@@ -198,7 +198,7 @@ class ArduinoHelper:
         self.settings_helper = settings_helper
         self.vid = self.settings_helper.settings['arduino']['vid']
         self.pid = self.settings_helper.settings['arduino']['pid']
-        self.arduino = serial.Serial(port=self.get_com_port(), baudrate=115200, timeout=2)
+        self.com_port = self.get_com_port()
     
 
     def get_com_port(self):
@@ -225,7 +225,7 @@ class ArduinoHelper:
             },
         }
         packet = json.dumps(packet)
-        self.arduino.write(packet.encode())
+        self.send_arduino_packet(packet)
 
 
     def click_mouse(self, right_click = False):
@@ -236,7 +236,8 @@ class ArduinoHelper:
             }
         }
         packet = json.dumps(packet)
-        self.arduino.write(packet.encode())
+        self.send_arduino_packet(packet)
+
 
 
     def type_string(self, string):
@@ -247,4 +248,20 @@ class ArduinoHelper:
             }
         }
         packet = json.dumps(packet)
-        self.arduino.write(packet.encode())
+        self.send_arduino_packet(packet)
+
+
+    def send_arduino_packet(self, packet):
+        """Loop to to try and send our request to the arduino.
+        Will probably be useful when running multiple accounts.
+        And the device is already busy...
+        """
+        while True:
+            try:
+                with serial.Serial(port=self.com_port, baudrate=115200, timeout=2) as arduino:
+                    arduino.write(packet.encode())
+            except serial.SerialException as e:
+                logger.info('arduino busy while trying to send packet. retrying')
+            else:
+                # break out of loop if we were able to send the command
+                break
