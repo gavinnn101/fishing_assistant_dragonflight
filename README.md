@@ -20,8 +20,8 @@ Fishing Assistant bot rewritten from scratch for Dragonflight. Cleaner codebase,
 
 # Setup
 ## Install Requirements
-* Open cmd / terminal in current folder (`shift + right-click` -> `Open Powershell window here`)
-* pip install -r requirements.txt (Only need to do this once.)
+* Open cmd / terminal in the downloaded folder (`shift + right-click` -> `Open Powershell window here`)
+* Run the command: `pip install -r requirements.txt` (Only need to do this once.)
 
 ## Choosing an input method
 * `virtual` - Can be used by just installing the requirements from above. Least safe method.
