@@ -63,11 +63,11 @@ class BreakHelper():
         logger.debug('Hitting enter to login to the account')
         self.input_helper.press_key('enter')
         # Give some time for the character select screen to load
-        time.sleep(10)
+        time.sleep(60)
         # Hit enter to login to the selected character
         logger.debug('Loading into game / character')
         self.input_helper.press_key('enter')
-        time.sleep(20)
+        time.sleep(60)
         self.time_to_break = False
         self.stop()
 
