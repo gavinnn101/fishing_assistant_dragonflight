@@ -203,7 +203,7 @@ class ArduinoHelper:
         self.vid = self.settings_helper.settings['arduino']['vid']
         self.pid = self.settings_helper.settings['arduino']['pid']
         self.com_port = self.get_com_port()
-        # self.arduino = serial.Serial(port=self.com_port, baudrate=115200, timeout=2)
+        self.arduino = serial.Serial(port=self.com_port, baudrate=115200, timeout=2)
     
 
     def get_com_port(self):
@@ -229,7 +229,6 @@ class ArduinoHelper:
         self.poll_cmd(packet)
 
 
-
     def type_string(self, string):
         # https://www.arduino.cc/reference/en/language/functions/usb/keyboard/keyboardmodifiers/
         # only handling `esc` and `enter` on the driver side.
@@ -245,10 +244,9 @@ class ArduinoHelper:
         start_time = datetime.now()
         while get_duration(then=start_time, now=datetime.now(), interval='seconds') < timeout:
             try:
-                with serial.Serial(port=self.com_port, baudrate=115200, timeout=2) as arduino:
-                    arduino.write(cmd.encode())
-                    while arduino.readline().decode().rstrip() != "Finished":
-                        time.sleep(0.1)
+                self.arduino.write(cmd.encode())
+                while self.arduino.readline().decode().rstrip() != "Finished":
+                    time.sleep(0.1)
             except serial.serialutil.SerialException:
                 logger.warning('Device busy when trying to send packet')
                 time.sleep(0.1)
