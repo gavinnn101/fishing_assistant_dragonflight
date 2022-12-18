@@ -4,10 +4,12 @@ import random
 import serial
 import sys
 import time
+from datetime import datetime
 from pyHM import mouse
 from loguru import logger
 from utility.interception_py.interception import *
 from utility.key_codes import KEYBOARD_MAPPING
+from utility.util import get_duration
 from win32api import GetSystemMetrics
 
 
@@ -201,6 +203,7 @@ class ArduinoHelper:
         self.vid = self.settings_helper.settings['arduino']['vid']
         self.pid = self.settings_helper.settings['arduino']['pid']
         self.com_port = self.get_com_port()
+        # self.arduino = serial.Serial(port=self.com_port, baudrate=115200, timeout=2)
     
 
     def get_com_port(self):
@@ -215,59 +218,41 @@ class ArduinoHelper:
         sys.exit("no device found")
 
 
-    def move_mouse(self, x, y):
+    def move_mouse(self, next_x, next_y):
         cur_x, cur_y = pg.position()
-        packet = {
-        "event_type": "mouse_move",
-        "params": {
-            "next_x": x,
-            "next_y": y,
-            "current_x": cur_x,
-            "current_y": cur_y,
-            },
-        }
-        packet = json.dumps(packet)
-        self.send_arduino_packet(packet)
+        packet = f"move_mouse,{cur_x},{cur_y},{next_x},{next_y}"
+        self.poll_cmd(packet)
 
 
     def click_mouse(self, right_click = False):
-        packet = {
-            "event_type": "mouse_click",
-            "params": {
-                "right_click": right_click
-            }
-        }
-        packet = json.dumps(packet)
-        self.send_arduino_packet(packet)
+        packet = "click_mouse,"
+        self.poll_cmd(packet)
 
 
 
     def type_string(self, string):
-        # Convert function key to proper identifier
         # https://www.arduino.cc/reference/en/language/functions/usb/keyboard/keyboardmodifiers/
-        if 'f' in string.lower() and len(string) == 2:
-            string = f'KEY_{string}'
-        packet = {
-            "event_type": "type_string",
-            "params": {
-                "input_string": string
-            }
-        }
-        packet = json.dumps(packet)
-        self.send_arduino_packet(packet)
+        # only handling `esc` and `enter` on the driver side.
+        # Should handle function keys, etc, eventually. Couldn't figure out how to map easily.
+        packet = f'type_string,{string}'
+        self.poll_cmd(packet)
 
 
-    def send_arduino_packet(self, packet):
-        """Loop to to try and send our request to the arduino.
-        Will probably be useful when running multiple accounts.
-        And the device is already busy...
-        """
-        while True:
+    def poll_cmd(self, cmd: str) -> bool:
+        """Sends arduino command over serial and poll response until finished or timeout is hit."""
+        logger.debug(f'Sending cmd: {cmd}')
+        timeout = 10  # seconds
+        start_time = datetime.now()
+        while get_duration(then=start_time, now=datetime.now(), interval='seconds') < timeout:
             try:
                 with serial.Serial(port=self.com_port, baudrate=115200, timeout=2) as arduino:
-                    arduino.write(packet.encode())
-            except serial.SerialException as e:
-                logger.info('arduino busy while trying to send packet. retrying')
+                    arduino.write(cmd.encode())
+                    while arduino.readline().decode().rstrip() != "Finished":
+                        time.sleep(0.1)
+            except serial.serialutil.SerialException:
+                logger.warning('Device busy when trying to send packet')
+                time.sleep(0.1)
             else:
-                # break out of loop if we were able to send the command
-                break
+                logger.debug('Finished sending cmd')
+                return True
+        sys.exit(logger.error(f'Failed to send command: {cmd}. Exiting'))
