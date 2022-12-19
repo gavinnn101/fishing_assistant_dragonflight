@@ -1,0 +1,46 @@
+path: C:\Users\%USERPROFILE%\AppData\Local\Arduino15\packages\arduino\hardware\avr\1.8.6\boards.txt
+* add this snippet to bottom of file and save
+* open Arduino IDE
+* Select boards -> KeyboardMouseCombo
+* Upload sketch
+
+##############################################################
+
+KeyboardMouseCombo.name=KeyboardMouseCombo
+KeyboardMouseCombo.vid.0=0x1376
+KeyboardMouseCombo.pid.0=0x8271
+KeyboardMouseCombo.vid.1=0x2955
+KeyboardMouseCombo.pid.1=0x0870
+KeyboardMouseCombo.vid.2=0x8876
+KeyboardMouseCombo.pid.2=0x8366
+KeyboardMouseCombo.vid.3=0x5531
+KeyboardMouseCombo.pid.3=0x4990
+ 
+KeyboardMouseCombo.upload.tool.default=avrdude
+KeyboardMouseCombo.upload.protocol=avr109
+KeyboardMouseCombo.upload.maximum_size=28672
+KeyboardMouseCombo.upload.maximum_data_size=2560
+KeyboardMouseCombo.upload.speed=57600
+KeyboardMouseCombo.upload.disable_flushing=true
+KeyboardMouseCombo.upload.use_1200bps_touch=true
+KeyboardMouseCombo.upload.wait_for_upload_port=true
+ 
+KeyboardMouseCombo.bootloader.tool=avrdude
+KeyboardMouseCombo.bootloader.low_fuses=0xff
+KeyboardMouseCombo.bootloader.high_fuses=0xd8
+KeyboardMouseCombo.bootloader.extended_fuses=0xcb
+KeyboardMouseCombo.bootloader.file=caterina/Caterina-Leonardo.hex
+KeyboardMouseCombo.bootloader.unlock_bits=0x3F
+KeyboardMouseCombo.bootloader.lock_bits=0x2F
+ 
+KeyboardMouseCombo.build.mcu=atmega32u4
+KeyboardMouseCombo.build.f_cpu=16000000L
+KeyboardMouseCombo.build.vid=0x1376
+KeyboardMouseCombo.build.pid=0x8271
+KeyboardMouseCombo.build.usb_product="KeyboardMouseCombo"
+KeyboardMouseCombo.build.board=AVR_LEONARDO
+KeyboardMouseCombo.build.core=arduino
+KeyboardMouseCombo.build.variant=leonardo
+KeyboardMouseCombo.build.extra_flags={build.usb_flags}
+
+##############################################################
