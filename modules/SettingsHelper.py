@@ -37,6 +37,7 @@ class SettingsHelper:
             # Add user settings to config
             config.add_section("user")
             config.set("user", "debug", "True")
+            config.set("user", "nickname", "acc1")
             config.set("user", "upper_reaction_time", "0.350")
             config.set("user", "lower_reaction_time", "0.170")
             config.set("user", "input_method", "virtual")
@@ -68,6 +69,8 @@ class SettingsHelper:
             # Add arduino settings to config
             config.set("arduino", "vid", "2341")
             config.set("arduino", "pid", "0036")
+            # Add tsm settings to config
+            config.set("tsm", "api_key", "your_api_key_here")
             with open(settings_path, "w+") as config_file:
                 config.write(config_file)
         # Add settings from settings file to config and return the config

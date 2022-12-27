@@ -1,16 +1,20 @@
+import aiohttp
+import asyncio
 import cv2 as cv
 import numpy as np
+import os
 import random
 import sys
 import time
 from datetime import datetime
-from discord_webhook import DiscordWebhook, DiscordEmbed
+from discord import Webhook, Embed, File
 from loguru import logger
 from mss import mss
 from win32gui import FindWindow, GetWindowRect, GetClientRect
 
 from modules.BreakHelper import BreakHelper
 from modules.InputHelper import InputHelper
+from modules.TSMWrapper import TSMWrapper
 from utility.util import get_duration
 
 
@@ -33,9 +37,9 @@ class FishingBot():
         self.break_helper = BreakHelper(settings_helper=self.settings_helper, input_helper=self.input_helper)
         self.breaks_enabled = self.settings_helper.settings['breaks'].getboolean('breaks_enabled')
         # Bobber template
-        self.template_name = self.settings_helper.settings['fishing'].get('bobber_image_name')
-        self.template_path = f'templates\\{self.template_name}'
-        self.bobber_template = cv.imread(self.template_path, 0)
+        self.bobber_template_name = self.settings_helper.settings['fishing'].get('bobber_image_name')
+        self.bobber_template_path = f'templates\\bobber_templates\\{self.bobber_template_name}'
+        self.bobber_template = cv.imread(self.bobber_template_path, 0)
         self.w, self.h = self.bobber_template.shape[::-1]
         # Initialize fishing stats
         self.fish_caught = 0
@@ -44,6 +48,57 @@ class FishingBot():
         self.rods_cast = 0
         self.DIP_THRESHOLD = self.settings_helper.settings['fishing'].getint('dip_threshold')
         self.time_since_bait = None
+        # Initialize TSMWrapper for fish prices
+        self.tsm = TSMWrapper(settings_helper=self.settings_helper)
+        self.fish_map = {
+            'scalebelly_mackerel': {
+                'template': None,
+                'loot_count': 0,
+                'gold_earned': 0,
+            },
+            'temporal_dragonhead': {
+                'template': None,
+                'loot_count': 0,
+                'gold_earned': 0,
+            },
+            'thousandbite_piranha': {
+                'template': None,
+                'loot_count': 0,
+                'gold_earned': 0,
+            },
+            'islefin_dorado': {
+                'template': None,
+                'loot_count': 0,
+                'gold_earned': 0,
+            },
+            'dull_spined_clam': {
+                'template': None,
+                'loot_count': 0,
+                'gold_earned': 0,
+            },
+            'cerulean_spinefish': {
+                'template': None,
+                'loot_count': 0,
+                'gold_earned': 0,
+            },
+            'aileron_seamoth': {
+                'template': None,
+                'loot_count': 0,
+                'gold_earned': 0,
+            },
+            'copper_coin': {
+                'template': None,
+                'loot_count': 0,
+                'gold_earned': 0,
+            },
+            'recipe_bottle': {
+                'template': None,
+                'loot_count': 0,
+                'gold_earned': 0,
+            }
+        }
+        # Set loot templates
+        self.cache_loot_templates()
         # Set start time of bot
         self.start_time = datetime.now()
         # Start auto vendor timer if enabled
@@ -54,34 +109,22 @@ class FishingBot():
         # Game Client Variables
         self.game_window_name = "World of Warcraft"
         self.game_window_class = "GxWindowClass"
-        self.game_window_handle = FindWindow(self.game_window_class, self.game_window_name)
-        self.game_window_rect = GetWindowRect(self.game_window_handle)  # left, top, right, bottom
-        self.game_size = GetClientRect(self.game_window_handle)
-
-        # # First set of offsets (30,8) will remove window title bar / border
-        # top_offset = 30
-        # bot_offset = 8
-        # Second set of offsets will only show middle of game window
-        self.top_offset = (self.game_size[2] // 2) - int((0.20 * self.game_size[2]))
-        self.bot_offset = (self.game_size[3] // 2) - int((0.30 * self.game_size[3]))
-        logger.info(f'Full Game Rect: {self.game_window_rect}')
-        self.game_window_rect = (
-            self.game_window_rect[0] + self.bot_offset,
-            self.game_window_rect[1] + self.top_offset,
-            self.game_window_rect[2] - self.bot_offset,
-            self.game_window_rect[3] - self.bot_offset
-        )
+        self.game_window_handle = None
+        self.game_window_rect = None  # left, top, right, bottom
+        self.fishing_area = None
+        # Set Game window vars
+        self.set_game_window_data()
 
         # Set log level
-        if not settings_helper.settings['user'].get('debug'):
+        if not settings_helper.settings['user'].getboolean('debug'):
             # Set log level to INFO
             logger.remove()
             logger.add(sys.stderr, level="INFO")
 
 
-    def find_bobber(self, screenshot):
+    def find_template(self, screenshot, template):
         methods = ['cv.TM_CCOEFF_NORMED']  #, 'cv.TM_CCORR_NORMED', 'cv.TM_SQDIFF', 'cv.TM_SQDIFF_NORMED'
-        match = cv.matchTemplate(screenshot, self.bobber_template, eval(methods[0]))
+        match = cv.matchTemplate(screenshot, template, eval(methods[0]))
         results = cv.minMaxLoc(match) # (min_val, max_val, min_loc, max_loc)
         return (results[1], results[3]) # max_val, max_loc
 
@@ -93,6 +136,44 @@ class FishingBot():
         top_left = (top_left[0] - 20, top_left[1] - 20)  # position of box
         bottom_right = (top_left[0] + self.w + 40, top_left[1] + self.h + 20)  # size of box
         return (top_left, bottom_right)
+
+    def get_loot_box(self, location):
+        """Returns coordinates of box to watch for loot window."""
+        # loot window coordinates
+        top_left = location
+        top_left = (top_left[0] - 20, top_left[1] - 20)  # position of box
+        bottom_right = (top_left[0] + self.w + 100, top_left[1] + self.h + 50)  # size of box
+        return (top_left, bottom_right)
+
+
+    def count_loot(self, loot_box):
+        start_time = datetime.now()
+        # Get screen coordinates of bobber box
+        box = (self.translate_coords(loot_box[0]), self.translate_coords(loot_box[1]))
+        while get_duration(then=start_time, now=datetime.now(), interval='seconds') < 3:
+            with mss() as sct:
+                # Take screenshot of the bobber_box area
+                screenshot = sct.grab((box[0][0], box[0][1], box[1][0], box[1][1]))
+                screenshot = cv.cvtColor(np.array(screenshot), cv.COLOR_BGR2GRAY)
+                # DEBUG SCREENSHOT
+                if self.settings_helper.settings['user'].getboolean('debug'):
+                    cv.imshow('Loot Debug', screenshot)
+                    key = cv.waitKey(1)
+                    if key == ord('q'):
+                        cv.destroyAllWindows()
+                        sys.exit()
+                # Check what the loot is
+                for fish_name, fish_data in self.fish_map.items():
+                    # logger.debug(f"Checking template: {template_name} \n {template}")
+                    confidence, location = self.find_template(screenshot, fish_data['template'])
+                    # logger.debug(f'Confidence: {confidence} | Location: {location}')
+                    # Keep track of bobbber position (confidence doesn't need to be high since it's a very small area to watch.)
+                    if (confidence >= 0.95):
+                        logger.success(f"Found {fish_name} - {confidence}")
+                        self.fish_map[fish_name]['loot_count'] += 1
+                        return True
+        logger.warning("Couldn't find a match looking for loot")
+        return False
 
 
     def catch_fish(self, bobber_box):
@@ -115,7 +196,7 @@ class FishingBot():
                 screenshot = sct.grab((box[0][0], box[0][1], box[1][0], box[1][1]))
                 screenshot = cv.cvtColor(np.array(screenshot), cv.COLOR_BGR2GRAY)
                 # Check that we found the bobber
-                confidence, location = self.find_bobber(screenshot)
+                confidence, location = self.find_template(screenshot, self.bobber_template)
                 logger.debug(f'Confidence: {confidence} | Location: {location}')
                 # Keep track of bobbber position (confidence doesn't need to be high since it's a very small area to watch.)
                 if (confidence >= 0.30):
@@ -123,7 +204,7 @@ class FishingBot():
                     counter += 1
                     total_y += location[1]
                     average_y_value = total_y // counter
-                    if self.settings_helper.settings['user'].get('debug'):
+                    if self.settings_helper.settings['user'].getboolean('debug'):
                         # Draw rectangle around bobber being tracked
                         bottom_right = (location[0] + self.w, location[1] + self.h)
                         cv.rectangle(screenshot, location, bottom_right, (0,255,0), 1)
@@ -132,12 +213,9 @@ class FishingBot():
                     if (abs(location[1] - average_y_value) >= self.DIP_THRESHOLD):
                         # Change in y position > threshold so we're going to click the bobber / catch the fish.
                         self.input_helper.click_mouse()
-                        # Sleep for a second so it can finish looting
-                        time.sleep(1 + random.random())
-                        self.break_helper.break_allowed = True
                         return True
                 # Display bobber debug window if enabled
-                if self.settings_helper.settings['user'].get('debug'):
+                if self.settings_helper.settings['user'].getboolean('debug'):
                     cv.imshow('bobber debug', screenshot)
                     key = cv.waitKey(1)
                     if key == ord('q'):
@@ -166,15 +244,9 @@ class FishingBot():
             #         self.input_helper.press_key(self.settings_helper.settings['fishing'].get('bait_hotkey'))
             #         self.bait_used += 1
             #         self.bait_time = datetime.now()
-            # Cast fishing rod
-            self.input_helper.press_key(self.settings_helper.settings['fishing'].get('fishing_hotkey'))
-            self.rods_cast += 1
-            # Wait for bobber to appear
-            time.sleep(2.5)
             with mss() as sct:
-                # Grab Screenshot of game window
-                screenshot = sct.grab(self.game_window_rect)
-                if self.settings_helper.settings['vendor'].get('auto_vendor_enabled'):
+                # Chech if we need to vendor / send progress report
+                if self.settings_helper.settings['vendor'].getboolean('auto_vendor_enabled'):
                     # Check if it's time to get on vendor mount to sell gray items
                     time_since_vendor = get_duration(then=self.vendor_time, now=datetime.now(), interval='minutes')
                     if time_since_vendor >= self.settings_helper.settings['vendor'].getint('vendor_interval'):
@@ -189,13 +261,20 @@ class FishingBot():
                         # Print progress report / stats
                         self.send_stats(sct.grab(self.game_window_rect))
                         continue  # Start at beginning of loop so we cast our rod
+                # Cast fishing rod
+                self.input_helper.press_key(self.settings_helper.settings['fishing'].get('fishing_hotkey'))
+                self.rods_cast += 1
+                # Wait for bobber to appear
+                time.sleep(2.5)
+                # Grab Screenshot of game window
+                screenshot = sct.grab(self.fishing_area)
                 # Convert screenshot to gray for image matching
                 screenshot = cv.cvtColor(np.array(screenshot), cv.COLOR_BGR2GRAY)
                 # Check game for bobber
-                confidence, location = self.find_bobber(screenshot)
+                confidence, location = self.find_template(screenshot, self.bobber_template)
                 logger.debug(f'Confidence: {confidence}')
                 # Show Game window if DEBUG is enabled
-                if self.settings_helper.settings['user'].get('debug'):
+                if self.settings_helper.settings['user'].getboolean('debug'):
                     cv.imshow('WoW Debug', screenshot)
                     key = cv.waitKey(1)
                     if key == ord('q'):
@@ -204,16 +283,22 @@ class FishingBot():
                 # Check if the match is above our confidence threshold
                 if confidence >= self.settings_helper.settings['fishing'].getfloat('min_confidence'):
                     logger.success(f"Bobber Found | Confidence: {confidence} | location: {location}")
-                    # Get box coordinates to watch around bobber
-                    bobber_box = self.get_bobber_box(location)
                     # Get screen coords of new bobber
                     screen_coords = self.translate_coords(location)
                     # Move mouse to bobber
                     logger.success(f'Moving mouse to: location: {location} | screen_coords: {screen_coords}')
                     self.input_helper.move_mouse(screen_coords[0], screen_coords[1])
+                    # Get box coordinates to watch around bobber
+                    bobber_box = self.get_bobber_box(location)
                     # Wait for catch
                     if (self.catch_fish(bobber_box)):
+                        # Identify loot and add it to counter for progress report
+                        loot_box = self.get_loot_box(location)
+                        self.count_loot(loot_box)
                         self.fish_caught += 1
+                        # Sleep for a second so it can finish looting
+                        time.sleep(1 + random.random())
+                        self.break_helper.break_allowed = True
                     else:
                         logger.warning('Failed to get catch.')
                         self.no_fish_casts += 1
@@ -247,15 +332,32 @@ class FishingBot():
         self.break_helper.break_allowed = True
 
 
+    def cache_loot_templates(self):
+        """Load loot templates into memory on start."""
+        loot_templates_dir = "templates\\loot_templates"
+        for template_file in os.listdir(loot_templates_dir):
+            # Get template path
+            template_path = os.path.join(loot_templates_dir, template_file)
+            logger.debug(f"Loading in template: {template_path}")
+            # Load in template
+            template = cv.imread(template_path, 0)
+            # Add to dict
+            template_name = template_file.removesuffix('.png')
+            self.fish_map[template_name]['template'] = template
+
+
     def send_stats(self, game_screenshot):
         """Prints stats for current run and sends via webhook if enabled."""
         time_ran = get_duration(then=self.start_time, now=datetime.now(), interval='default')
-        gold_earned = self.fish_caught * 10
+        self.fish_map = self.tsm.get_gold_earned(self.fish_map)
+        # Calculate and formate total gold earned
+        gold_earned = round(sum([self.fish_map[fish]['loot_count'] * self.tsm.fish_map[fish]['price'] for fish in self.tsm.fish_map]), 2)
+        gold_earned = f"{gold_earned}g"
         # Print progress report to console.
         logger.success('-----------------------')
         logger.success('Progress Report:')
         logger.success(f'Time Ran: {time_ran} minute(s)')
-        logger.success(f'Estimated Gold Earned: {gold_earned}g')
+        logger.success(f'Estimated Gold Earned: {gold_earned}')
         logger.success(f'Rods Cast: {self.rods_cast}')
         logger.success(f'Fish Caught: {self.fish_caught}')
         logger.success(f'Bait Used: {self.bait_used}')
@@ -263,29 +365,33 @@ class FishingBot():
 
         # Send a progress report via discord webhook if it's enabled.
         if self.settings_helper.settings['webhook'].getboolean('discord_webhook_enabled'):
-            # Create embeds with fishing stats to send
-            embed = DiscordEmbed(title='Progress Report', description='Fishing Assistant Progress Report', color='03b2f8')
-            embed.add_embed_field('Time Ran:', time_ran)
-            embed.add_embed_field('Estimated Gold Earned:', gold_earned)
-            embed.add_embed_field('Rods Cast:', self.rods_cast)
-            embed.add_embed_field('Fish Caught:', self.fish_caught)
-            embed.add_embed_field('No catch casts:', self.no_fish_casts)
-            embed.add_embed_field('Bait Used:', self.bait_used)
-            # Create webhook and send it
-            webhook = DiscordWebhook(url=self.webhook_url, rate_limit_retry=True)
-            # Add game screenshot to embed
-            import mss.tools
-            mss.tools.to_png(game_screenshot.rgb, game_screenshot.size, output='game_screenshot.png')
-            with open("game_screenshot.png", "rb") as f:
-                webhook.add_file(file=f.read(), filename='game_screenshot.png')
-            embed.set_thumbnail(url='attachment://game_screenshot.png')
-            webhook.add_embed(embed)
-            response = webhook.execute()
+            logger.debug('sending webhook notification')
+
+            async def send_discord_progress_report():
+                async with aiohttp.ClientSession() as session:
+                    webhook = Webhook.from_url(url=self.webhook_url, session=session)
+                    embed = Embed(title='Progress Report', description='Fishing Assistant Progress Report')
+                    embed.add_field(name='Time Ran:', value=time_ran)
+                    embed.add_field(name='Rods Cast:', value=self.rods_cast)
+                    embed.add_field(name='Fish Caught:', value=self.fish_caught)
+                    embed.add_field(name='Estimated Gold Earned:', value=gold_earned)
+                    embed.add_field(name='Bait Used:', value=self.bait_used)
+                    embed.add_field(name='No catch casts:', value=self.no_fish_casts)
+                    for fish in self.fish_map:
+                        if self.fish_map[fish]['loot_count'] > 0:
+                            embed.add_field(name=fish, value=self.fish_map[fish]['loot_count'])
+                    import mss.tools
+                    mss.tools.to_png(game_screenshot.rgb, game_screenshot.size, output='game_screenshot.png')
+                    file = File("game_screenshot.png", filename="game_screenshot.png")
+                    embed.set_image(url="attachment://game_screenshot.png")
+                    await webhook.send(embed=embed, file=file, username=self.settings_helper.settings['user'].get('nickname'))
+
+            asyncio.run(send_discord_progress_report())
 
 
     def translate_coords(self, coords):
         """Translates game coords to screen coords."""
-        return (coords[0] + self.w // 2 + self.game_window_rect[0], coords[1] + self.h // 2 + self.game_window_rect[1])
+        return (coords[0] + self.w // 2 + self.fishing_area[0], coords[1] + self.h // 2 + self.fishing_area[1])
 
 
     def set_game_window_data(self):
@@ -301,7 +407,7 @@ class FishingBot():
         self.top_offset = (self.game_size[2] // 2) - int((0.20 * self.game_size[2]))
         self.bot_offset = (self.game_size[3] // 2) - int((0.30 * self.game_size[3]))
         logger.info(f'Full Game Rect: {self.game_window_rect}')
-        self.game_window_rect = (
+        self.fishing_area = (
             self.game_window_rect[0] + self.bot_offset,
             self.game_window_rect[1] + self.top_offset,
             self.game_window_rect[2] - self.bot_offset,
@@ -330,5 +436,8 @@ def set_active_window(window_id):
         ShowWindow(window_id, SW_RESTORE)
     else:
         ShowWindow(window_id, SW_SHOW)
-    SetForegroundWindow(window_id)
-    SetActiveWindow(window_id)
+    try:
+        SetForegroundWindow(window_id)
+        SetActiveWindow(window_id)
+    except Exception as e:
+        logger.warning('Got error while trying to foreground window. Continuing anyways(not sure how this will go)')

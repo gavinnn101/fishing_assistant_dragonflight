@@ -245,12 +245,12 @@ class ArduinoHelper:
         while get_duration(then=start_time, now=datetime.now(), interval='seconds') < timeout:
             try:
                 self.arduino.write(cmd.encode())
-                while self.arduino.readline().decode().rstrip() != "Finished":
-                    time.sleep(0.1)
             except serial.serialutil.SerialException:
                 logger.warning('Device busy when trying to send packet')
                 time.sleep(0.1)
             else:
+                while self.arduino.readline().decode().rstrip() != "Finished":
+                    time.sleep(0.1)
                 logger.debug('Finished sending cmd')
                 return True
         sys.exit(logger.error(f'Failed to send command: {cmd}. Exiting'))

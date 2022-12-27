@@ -15,6 +15,7 @@ Fishing Assistant bot rewritten from scratch for Dragonflight. Cleaner codebase,
     - [Breaks](#breaks)
     - [Auto Vendor](#auto-vendor)
     - [Discord Webhook](#discord-webhook)
+    - [TSM](#tsm)
 - [In-game Settings](#in-game-settings)
 - [Running Script](#running-script)
 
@@ -90,7 +91,13 @@ Fishing Assistant bot rewritten from scratch for Dragonflight. Cleaner codebase,
 * * Must have a valid webhook url!
 * `discord_webhook_url = webhook_url_goes_here` - Paste your discord webhook's url here.
 
+### TSM
+* `api_key` - Set to your TSM API key found at https://www.tradeskillmaster.com/user
+* * Used to get accurate prices for progress reports.
+
 # In-game Settings
+* The script now template matches the loot window to keep an accurate track of loot.
+* * For this to work, you'll want to set your game resolution to `1280x768` with `98% render scale` (possibly doesn't matter)
 * I don't think it should matter to much but in testing I had the preset graphics slider set to 1/lowest.
 
 # Running Script

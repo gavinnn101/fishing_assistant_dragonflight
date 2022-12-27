@@ -7,7 +7,7 @@ from modules.FishingBot import FishingBot
 # Initialize SettingsHelper
 settings_helper = SettingsHelper()
 
-if not settings_helper.settings['user'].get('debug'):
+if not settings_helper.settings['user'].getboolean('debug'):
     # Set log level to INFO
     logger.remove()
     logger.add(sys.stderr, level="INFO")

@@ -1,4 +1,5 @@
-discord-webhook
+aiohttp
+discord.py
 opencv-python
 mss
 pyautogui
