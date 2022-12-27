@@ -59,6 +59,10 @@ void type_string(String params) {
   Serial.println("Finished");
 }
 
+int bezierPoint(int start, int c1, int c2, int end, float t) {
+  return (int) (pow(1 - t, 3) * start + 3 * t * pow(1 - t, 2) * c1 + 3 * pow(t, 2) * (1 - t) * c2 + pow(t, 3) * end);
+}
+
 void move_mouse(String params) {
   // Split the params string into its different parts
   int currentXIndex = params.indexOf(',');
@@ -68,41 +72,31 @@ void move_mouse(String params) {
 
   int currentX = params.substring(0, currentXIndex).toInt();
   int currentY = params.substring(currentXIndex + 1, currentYIndex).toInt();
-  int nextX = params.substring(currentYIndex + 1, nextXIndex).toInt();
-  int nextY = params.substring(nextXIndex + 1, nextYIndex).toInt();
+  int targetX = params.substring(currentYIndex + 1, nextXIndex).toInt();
+  int targetY = params.substring(nextXIndex + 1, nextYIndex).toInt();
 
-  Serial.print("Moving mouse from: ");
-  Serial.print(currentX);
-  Serial.print(" ");
-  Serial.print(currentY);
-  Serial.print(" to ");
-  Serial.print(nextX);
-  Serial.print(" ");
-  Serial.println(nextY);
+  // Generate random control points for the Bezier curve
+  int c1x = random(currentX, targetX);
+  int c1y = random(currentY, targetY);
+  int c2x = random(currentX, targetX);
+  int c2y = random(currentY, targetY);
 
-  // Calculate the distance to move in the x and y directions
-  int deltaX = nextX - currentX;
-  int deltaY = nextY - currentY;
+  // Calculate the step size for the curve
+  float stepSize = 1.0 / max(abs(targetX - currentX), abs(targetY - currentY));
 
-  // Break the movement into smaller steps, if necessary, to stay within the limits of Mouse.move()
-  while (deltaX != 0 || deltaY != 0) {
-    int stepX = deltaX;
-    int stepY = deltaY;
+  // Move the mouse along the curve
+  for (float t = 0; t <= 1.0; t += stepSize) {
+    int x = bezierPoint(currentX, c1x, c2x, targetX, t);
+    int y = bezierPoint(currentY, c1y, c2y, targetY, t);
 
-    // Won't work correctly if giving the max values. probably...
-    if (abs(stepX) > 127) {
-      stepX = 127 * (stepX > 0 ? 1 : -1);
+    // Move the mouse in increments of at most 127 units until it reaches the target position
+    while (currentX != x || currentY != y) {
+      int dx = min(127, x - currentX);
+      int dy = min(127, y - currentY);
+      Mouse.move(dx, dy, 0);
+      currentX += dx;
+      currentY += dy;
     }
-    if (abs(stepY) > 127) {
-      stepY = 127 * (stepY > 0 ? 1 : -1);
-    }
-
-    // Make the mouse move
-    Mouse.move(stepX, stepY);
-
-    // Decrement the distance to move by the amount we just moved
-    deltaX -= stepX;
-    deltaY -= stepY;
   }
   Serial.println("Finished");
 }
