@@ -1,6 +1,9 @@
 import requests
+import time
 import sys
+from datetime import datetime
 from loguru import logger
+from utility.util import get_duration
 
 class TSMWrapper():
     """Class makes API calls to TSM's pricing api to get the prices of fish for stat tracking."""
@@ -42,6 +45,7 @@ class TSMWrapper():
         # Cache fish prices
         self.cache_fish_prices()
 
+
     def get_access_token(self):
         url = ' https://auth.tradeskillmaster.com/oauth2/token'
         payload = {
@@ -50,11 +54,15 @@ class TSMWrapper():
             "scope": "app:pricing-api",
             "token": self.api_token
         }
-        resp = requests.post(url, json=payload).json()
-        if 'access_token' in resp:
-            return resp['access_token']
-        else:
-            sys.exit(logger.error(f"Error getting access token: {resp}"))
+        start_time = datetime.now()
+        while get_duration(then=start_time, now=datetime.now(), interval='seconds') < 30:
+            resp = requests.post(url, json=payload).json()
+            if 'access_token' in resp:
+                return resp['access_token']
+            else:
+                logger.warning(f"Couldn't get access_token. \n Response: {resp} \n Waiting 5 seconds and trying again.")
+                time.sleep(5)
+        sys.exit(logger.error(f"Timed out getting access token... Last Response: {resp}"))
 
     def get_item_stats(self, item_id: int):
         headers =  {"Authorization": f"Bearer {self.access_token}"}
@@ -69,8 +77,8 @@ class TSMWrapper():
             fish_stats = self.get_item_stats(fish_data['id'])
             # Get price of fish from stats
             price = fish_stats['avgSalePrice'] / 10_000
-            logger.info(f"{fish} Cost: {fish_stats['avgSalePrice']}")
-            logger.info(f"Converted cost: {price}")
+            logger.debug(f"{fish} Cost: {fish_stats['avgSalePrice']}")
+            logger.debug(f"Converted cost: {price}")
             # Cache fish price
             self.fish_map[fish]['price'] = price
             logger.success(f"Cached {fish} - {price}")

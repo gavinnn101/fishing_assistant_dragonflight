@@ -147,6 +147,7 @@ class FishingBot():
 
 
     def count_loot(self, loot_box):
+        highest_fish, highest_conf = None, None
         start_time = datetime.now()
         # Get screen coordinates of bobber box
         box = (self.translate_coords(loot_box[0]), self.translate_coords(loot_box[1]))
@@ -166,13 +167,18 @@ class FishingBot():
                 for fish_name, fish_data in self.fish_map.items():
                     # logger.debug(f"Checking template: {template_name} \n {template}")
                     confidence, location = self.find_template(screenshot, fish_data['template'])
-                    # logger.debug(f'Confidence: {confidence} | Location: {location}')
-                    # Keep track of bobbber position (confidence doesn't need to be high since it's a very small area to watch.)
-                    if (confidence >= 0.95):
+                    logger.debug(f'Template: {fish_name} | Confidence: {confidence} | Location: {location}')
+                    # Keep track of our best find for debugging
+                    if highest_conf == None or confidence > highest_conf:
+                        highest_conf = confidence
+                        highest_fish = fish_name
+                    # Check if we found our loot
+                    if (confidence >= 0.75):
                         logger.success(f"Found {fish_name} - {confidence}")
                         self.fish_map[fish_name]['loot_count'] += 1
                         return True
         logger.warning("Couldn't find a match looking for loot")
+        logger.debug(f"Best match found: {highest_fish} - {highest_conf}")
         return False
 
 
@@ -397,6 +403,14 @@ class FishingBot():
     def set_game_window_data(self):
         """Set new game window data after it's relaunched from a break."""
         self.game_window_handle = FindWindow(self.game_window_class, self.game_window_name)
+        # Launch the game if it's not already open.
+        if self.game_window_handle == 0:
+            logger.info(f"Couldn't find an open WoW client. Launching game.")
+            # Open game
+            self.break_helper.launch_game()
+            # Get new handle after opening game
+            self.game_window_handle = FindWindow(self.game_window_class, self.game_window_name)
+        # Set game client variables
         self.game_window_rect = GetWindowRect(self.game_window_handle)  # left, top, right, bottom
         self.game_size = GetClientRect(self.game_window_handle)
 
