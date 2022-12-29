@@ -225,8 +225,8 @@ class FishingBot():
                 screenshot = sct.grab((box[0][0], box[0][1], box[1][0], box[1][1]))
                 screenshot = cv.cvtColor(np.array(screenshot), cv.COLOR_BGR2GRAY)
                 # Check that we found the bobber
-                confidence, location = self.find_template(screenshot, self.bobber_template)
-                logger.debug(f'Confidence: {confidence} | Location: {location}')
+                confidence, location, scale = self.find_template(screenshot, self.bobber_template)
+                logger.debug(f'Confidence: {confidence} | Location: {location} | Scale: {scale}')
                 # Keep track of bobbber position (confidence doesn't need to be high since it's a very small area to watch.)
                 if (confidence >= 0.30):
                     # Get average y value
@@ -324,9 +324,10 @@ class FishingBot():
                         loot_box = self.get_loot_box(location)
                         self.count_loot(loot_box)
                         self.fish_caught += 1
+                        # Loot the fish
+                        self.input_helper.click_mouse()
                         # Sleep for a second so it can finish looting
                         time.sleep(1 + random.random())
-                        self.break_helper.break_allowed = True
                     else:
                         logger.warning('Failed to get catch.')
                         self.no_fish_casts += 1
@@ -334,8 +335,6 @@ class FishingBot():
 
     def auto_vendor(self, mammoth_hotkey, target_hotkey, interact_hotkey):
         """Gets on mount, targets shop npc, and opens shop for addon to auto sell trash."""
-        # Don't start a break in the middle of vendoring
-        self.break_helper.break_allowed = False
         logger.info('Starting auto vendor')
         # Get on mount
         logger.debug('getting on mount')
@@ -356,8 +355,6 @@ class FishingBot():
         logger.debug('closing shop window')
         self.input_helper.press_key('esc')  # escape
         time.sleep(1 + random.random())
-        # Unset break flag
-        self.break_helper.break_allowed = True
 
 
     def cache_loot_templates(self):
