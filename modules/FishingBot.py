@@ -219,9 +219,7 @@ class FishingBot():
         
         # Get screen coordinates of bobber box
         box = (self.translate_coords(bobber_box[0]), self.translate_coords(bobber_box[1]))
-        # Don't start a break in the middle of a fishing loop
-        self.break_helper.break_allowed = False
-        while get_duration(then=start_time, now=datetime.now(), interval='seconds') < self.settings_helper.settings['fishing'].getint('timeout_threshold'):
+        while get_duration(then=start_time, now=datetime.now(), interval='seconds') < self.settings_helper.settings['fishing'].getint('timeout_threshold') and not self.break_helper.time_to_break:
             with mss() as sct:
                 # Take screenshot of the bobber_box area
                 screenshot = sct.grab((box[0][0], box[0][1], box[1][0], box[1][1]))
@@ -253,7 +251,6 @@ class FishingBot():
                         cv.destroyAllWindows()
                         sys.exit()
         # Hit TIMEOUT_THRESHOLD
-        self.break_helper.break_allowed = True
         return False
 
 
