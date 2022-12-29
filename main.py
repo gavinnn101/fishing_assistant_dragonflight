@@ -17,4 +17,7 @@ fishing_bot = FishingBot(settings_helper=settings_helper)
 
 # Start bot
 # bot class checks for breaks and input method internally
-fishing_bot.run()
+try:
+    fishing_bot.run()
+except KeyboardInterrupt:
+    sys.exit("Got keyboard interrupt. Exiting.")

@@ -123,10 +123,35 @@ class FishingBot():
 
 
     def find_template(self, screenshot, template):
-        methods = ['cv.TM_CCOEFF_NORMED']  #, 'cv.TM_CCORR_NORMED', 'cv.TM_SQDIFF', 'cv.TM_SQDIFF_NORMED'
-        match = cv.matchTemplate(screenshot, template, eval(methods[0]))
-        results = cv.minMaxLoc(match) # (min_val, max_val, min_loc, max_loc)
-        return (results[1], results[3]) # max_val, max_loc
+        """Resizes template and finds the best match"""
+        import imutils
+        # screenshot w,h
+        (tH, tW) = screenshot.shape[:2]
+
+        # best match found
+        best_conf = None
+        best_loc = None
+        best_scale = None
+
+        # Loop over scale values to check for template
+        for scale in np.linspace(1.0, 1.6, 25)[::-1]:  # start_scale, max_scale, total increments between start-max
+            resized = imutils.resize(template, width = int(template.shape[1] * scale))
+            # r = screenshot.shape[1] / float(resized.shape[1])  # Not used
+            # Break if resized template is bigger than the screenshot. (shouldn't happen) 
+            if resized.shape[0] > tH or resized.shape[1] > tW:
+                break
+            # Check template match results
+            result = cv.matchTemplate(screenshot, resized, cv.TM_CCOEFF_NORMED)
+            _, maxVal, _, maxLoc = cv.minMaxLoc(result)
+            logger.debug(f"confidence: {maxVal} | location: {maxLoc} | scale: {scale}")
+            # Assign new best values if needed
+            if best_conf is None or maxVal > best_conf:
+                best_conf = maxVal
+                best_loc = maxLoc
+                best_scale = scale
+        # Return best match
+        return (best_conf, best_loc, best_scale)
+
 
 
     def get_bobber_box(self, location):
@@ -151,7 +176,7 @@ class FishingBot():
         start_time = datetime.now()
         # Get screen coordinates of bobber box
         box = (self.translate_coords(loot_box[0]), self.translate_coords(loot_box[1]))
-        while get_duration(then=start_time, now=datetime.now(), interval='seconds') < 3:
+        while get_duration(then=start_time, now=datetime.now(), interval='seconds') < 2:
             with mss() as sct:
                 # Take screenshot of the bobber_box area
                 screenshot = sct.grab((box[0][0], box[0][1], box[1][0], box[1][1]))
@@ -166,20 +191,20 @@ class FishingBot():
                 # Check what the loot is
                 for fish_name, fish_data in self.fish_map.items():
                     # logger.debug(f"Checking template: {template_name} \n {template}")
-                    confidence, location = self.find_template(screenshot, fish_data['template'])
-                    logger.debug(f'Template: {fish_name} | Confidence: {confidence} | Location: {location}')
+                    confidence, location, scale = self.find_template(screenshot, fish_data['template'])
+                    logger.debug(f'Template: {fish_name} | Confidence: {confidence} | Location: {location} | Scale: {scale}')
                     # Keep track of our best find for debugging
                     if highest_conf == None or confidence > highest_conf:
                         highest_conf = confidence
                         highest_fish = fish_name
-                    # Check if we found our loot
-                    if (confidence >= 0.75):
-                        logger.success(f"Found {fish_name} - {confidence}")
-                        self.fish_map[fish_name]['loot_count'] += 1
-                        return True
-        logger.warning("Couldn't find a match looking for loot")
-        logger.debug(f"Best match found: {highest_fish} - {highest_conf}")
-        return False
+        # Assume best find is correct and count it.
+        # thresholding doesn't seem to be a good option here as other templates can also rank high for some reason..
+        logger.success(f"Found {highest_fish} - {highest_conf}")
+        self.fish_map[fish_name]['loot_count'] += 1
+        return
+        # logger.warning("Couldn't find a match looking for loot")
+        # logger.debug(f"Best match found: {highest_fish} - {highest_conf} - scale: {scale}")
+        # return False
 
 
     def catch_fish(self, bobber_box):
@@ -277,8 +302,8 @@ class FishingBot():
                 # Convert screenshot to gray for image matching
                 screenshot = cv.cvtColor(np.array(screenshot), cv.COLOR_BGR2GRAY)
                 # Check game for bobber
-                confidence, location = self.find_template(screenshot, self.bobber_template)
-                logger.debug(f'Confidence: {confidence}')
+                confidence, location, scale = self.find_template(screenshot, self.bobber_template)
+                logger.debug(f'Potential Bobber - Confidence: {confidence} | Location: {location} | Scale: {scale}')
                 # Show Game window if DEBUG is enabled
                 if self.settings_helper.settings['user'].getboolean('debug'):
                     cv.imshow('WoW Debug', screenshot)

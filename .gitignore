@@ -2,7 +2,9 @@
 .idea
 settings/
 templates/
+templates/dev_templates/
 game_screenshot.png
+test.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
