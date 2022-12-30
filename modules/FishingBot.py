@@ -177,14 +177,27 @@ class FishingBot():
     # This function could probably be done in a separate thread since it takes a few seconds on slower machines/VMs.
     def count_loot(self, loot_box):
         highest_fish, highest_conf, highest_scale = None, None, None
+        base_pixel_count = None
         start_time = datetime.now()
         # Get screen coordinates of bobber box
         box = (self.translate_coords(loot_box[0]), self.translate_coords(loot_box[1]))
-        while get_duration(then=start_time, now=datetime.now(), interval='seconds') < 2:
+        while get_duration(then=start_time, now=datetime.now(), interval='seconds') < 3:
             with mss() as sct:
                 # Take screenshot of the bobber_box area
                 screenshot = sct.grab((box[0][0], box[0][1], box[1][0], box[1][1]))
                 screenshot = cv.cvtColor(np.array(screenshot), cv.COLOR_BGR2GRAY)
+                # Check that the loot window is open
+                ret, thresh = cv.threshold(screenshot,0,255,cv.THRESH_BINARY_INV)
+                pixel_count = cv.countNonZero(thresh)
+                # Set a base pixel count to substract against.
+                if base_pixel_count == None:
+                    logger.debug(f"Setting base_pixel_count to {pixel_count}")
+                    base_pixel_count = pixel_count
+                    continue
+                elif (pixel_count - base_pixel_count < 100):  # These values are ~400-1000 in testing images. in-game 100-200
+                    # logger.debug(f"Pixel count: {pixel_count}")
+                    # time.sleep(0.1)
+                    continue
                 # DEBUG SCREENSHOT
                 if self.settings_helper.settings['user'].getboolean('debug'):
                     cv.imshow('Loot Debug', screenshot)
@@ -202,11 +215,11 @@ class FishingBot():
                         highest_conf = confidence
                         highest_fish = fish_name
                         highest_scale = scale
-        # Assume best find is correct and count it.
-        # thresholding doesn't seem to be a good option here as other templates can also rank high for some reason..
-        logger.success(f"Found {highest_fish} - {highest_conf} - {highest_scale}")
-        self.fish_map[highest_fish]['loot_count'] += 1
-        return
+                # Assume best find is correct and count it.
+                # thresholding doesn't seem to be a good option here as other templates can also rank high for some reason..
+                logger.success(f"Found {highest_fish} - {highest_conf} - {highest_scale}")
+                self.fish_map[highest_fish]['loot_count'] += 1
+                return
         # logger.warning("Couldn't find a match looking for loot")
         # logger.debug(f"Best match found: {highest_fish} - {highest_conf} - scale: {scale}")
         # return False
@@ -330,10 +343,10 @@ class FishingBot():
                     if (self.catch_fish(bobber_box)):
                         # Identify loot and add it to counter for progress report
                         loot_box = self.get_loot_box(location)
-                        # Sleep while loot window opens
-                        loot_window_wait = 0.65
-                        logger.debug(f"Sleeping {loot_window_wait} seconds while loot window opens")
-                        time.sleep(loot_window_wait)
+                        # # Sleep while loot window opens
+                        # loot_window_wait = 0.65
+                        # logger.debug(f"Sleeping {loot_window_wait} seconds while loot window opens")
+                        # time.sleep(loot_window_wait)
                         # Track what loot we got
                         self.count_loot(loot_box)
                         self.fish_caught += 1
