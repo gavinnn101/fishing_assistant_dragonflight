@@ -1,121 +1,134 @@
 #include <Keyboard.h>
 #include <Mouse.h>
-#include <ArduinoJson.h>
 
 // "reaction time" between key presses
 const unsigned int LOWER_REACTION = 180;
 const unsigned int UPPER_REACTION = 310;
 
-
 void setup() {
   // open the serial port on arduino
-  Serial.begin(9600);
+  Serial.begin(115200);
   // initialize keyboard
-  Keyboard.begin();
+  Keyboard.begin(KeyboardLayout_en_US);
   // Initialize mouse
   Mouse.begin();
 }
-
 
 void loop() {
   // check for incoming serial data:
   while (Serial.available() > 0) {
     // Get available serial data
     String data = Serial.readStringUntil('\n');
-    // Deserialize data to json
-    StaticJsonDocument<192> doc;
-    DeserializationError error = deserializeJson(doc, data);
-    // Check if we failed to deserialize the data
-    if (error) {
-      Serial.print(F("deserializeJson() failed: "));
-      Serial.println(error.f_str());
-      return;
+    // Split the data string into its different parts
+    int eventTypeIndex = data.indexOf(',');
+    String eventType = data.substring(0, eventTypeIndex);
+    String params = data.substring(eventTypeIndex + 1);
+
+    // Process the data based on the event type
+    if (eventType == "move_mouse") {
+      move_mouse(params);
+    } else if (eventType == "click_mouse") {
+      click_mouse();
+    } else if (eventType == "type_string") {
+      type_string(params);
     }
-    // Process json data
-    process_json(doc);
-    // Flush buffer after processing. Might not be needed, just make sure to get fresh data after hitting delimiter.
-    Serial.flush();
   }
 }
 
-
-void process_json(StaticJsonDocument<192> d) {
-  const char* event_type = d["event_type"];
-  // JsonObject params = d["params"];
-  if (strcmp(event_type, "mouse_move") == 0) {
-    // Take action on a mouse_move event signal
-    Serial.println("Got a mouse move event");
-    mouse_move(d["params"]);
-  } else if (strcmp(event_type, "mouse_click") == 0) {
-    // Take action on a mouse_click event signal
-    Serial.println("Got a mouse click event");
-    mouse_click(d["params"]);
-  } else if (strcmp(event_type, "type_string") == 0) {
-    // Take action on a (keyboard) type_string event signal
-    Serial.println("Got a keyboard type string event");
-    type_string(d["params"]);
-  }
+void click_mouse() {
+  // Serial.println("Clicking mouse");
+  Mouse.click();
+  Serial.println("Finished");
 }
 
+void type_string(String params) {
+  // Split the params string into its different parts
+  int inputStringIndex = params.indexOf(',');
+  String inputString = params.substring(0, inputStringIndex);
 
-void type_string(JsonObject params) {
-  const char* input_string = params["input_string"];
-  Serial.print("Sending key: ");
-  Serial.print(input_string);
-  if (strcmp(input_string, "enter") == 0) {
-    Keyboard.write(176);
+  // Serial.print("Sending key: ");
+  // Serial.println(inputString);
+
+  if (inputString == "enter") {
+    Keyboard.press(KEY_RETURN);
+    delay(51);
+    Keyboard.release(KEY_RETURN);
+  } else if (inputString == "esc") {
+    Keyboard.press(KEY_ESC);
+    delay(51);
+    Keyboard.release(KEY_ESC);
   } else {
-    Keyboard.print(input_string);
+    Keyboard.print(inputString);
   }
+  Serial.println("Finished");
 }
 
-
-void mouse_move(JsonObject params) {
-  int next_x = params["next_x"]; // cursor's next x position
-  int next_y = params["next_y"]; // cursor's next y position
-  int current_x = params["current_x"]; // cursor's current x position
-  int current_y = params["current_y"]; // cursor's current y position
-  // (-128 <-> 127) max values mouse can move in either direction in one call
-  // positive x value moves mouse to the right, negative x value moves mouse to the left.
-  // positive y value moves the mouse down, negative y value moves the mouse up.
- 
-  // Print our values
-  // Serial.println(next_x);
-  // Serial.println(next_y);
-  // Serial.println(current_x);
-  // Serial.println(current_y);
-
-  // Calculate the distance to move in the x and y directions
-  int deltaX = next_x - current_x;
-  int deltaY = next_y - current_y;
-
-  // Break the movement into smaller steps, if necessary, to stay within the limits of Mouse.move()
-  while (deltaX != 0 || deltaY != 0) {
-    int stepX = deltaX;
-    int stepY = deltaY;
-
-    // Won't work correctl if giving the max values. probably some c++ memory shenanigans
-    if (abs(stepX) > 126) {
-      stepX = (stepX > 0) ? 126 : -127;
-    }
-    if (abs(stepY) > 126) {
-      stepY = (stepY > 0) ? 126 : -127;
-    }
-
-    Mouse.move(stepX, stepY);
-    // Serial.println("Moved mouse");
-
-    deltaX -= stepX;
-    deltaY -= stepY;
-  }
+int bezierPoint(int start, int c1, int c2, int end, float t) {
+  return (int) (pow(1 - t, 3) * start + 3 * t * pow(1 - t, 2) * c1 + 3 * pow(t, 2) * (1 - t) * c2 + pow(t, 3) * end);
 }
 
+void move_mouse(String params) {
+  // Split the params string into its different parts
+  int currentXIndex = params.indexOf(',');
+  int currentYIndex = params.indexOf(',', currentXIndex + 1);
+  int nextXIndex = params.indexOf(',', currentYIndex + 1);
+  int nextYIndex = params.indexOf(',', nextXIndex + 1);
 
-void mouse_click(JsonObject params) {
-  const char* params_right_click = params["right_click"]; // true or false
-  if (strcmp(params_right_click, "true") == 0) {
-    Mouse.click(MOUSE_RIGHT);
+  // Set current cursor position and target position
+  int currentX = params.substring(0, currentXIndex).toInt();
+  int currentY = params.substring(currentXIndex + 1, currentYIndex).toInt();
+  int targetX = params.substring(currentYIndex + 1, nextXIndex).toInt();
+  int targetY = params.substring(nextXIndex + 1, nextYIndex).toInt();
+
+  // // Debug info
+  // Serial.print("Moving mouse from: ");
+  // Serial.print(currentX);
+  // Serial.print(" ");
+  // Serial.print(currentY);
+  // Serial.print(" to: ");
+  // Serial.print(targetX);
+  // Serial.print(" ");
+  // Serial.println(targetY);
+
+  // Generate random control points for the Bezier curve
+  int c1x = random(currentX, targetX);
+  int c1y = random(currentY, targetY);
+  int c2x = random(currentX, targetX);
+  int c2y = random(currentY, targetY);
+
+  // Set the initial step size for the curve
+  float stepSize = 0.001;
+
+  // Calculate the distance between the current and target positions
+  float distance = abs(targetX - currentX) + abs(targetY - currentY);
+  // Serial.print("Calculated distance to move: ");
+  // Serial.println(distance);
+
+  // Set step size based on how far we have to move the mouse
+  if (distance <= 500) {
+    stepSize = 0.01;
+  } else if (distance <= 1000) {
+    stepSize = 0.005;
   } else {
-    Mouse.click();
+    stepSize = 0.001;
   }
+
+  // Move the mouse along the curve
+  for (float t = 0; t <= 1.0; t += stepSize) {
+    int x = bezierPoint(currentX, c1x, c2x, targetX, t);
+    int y = bezierPoint(currentY, c1y, c2y, targetY, t);
+
+    // Add a random jitter to the step size at each iteration
+    stepSize += random(-0.0001, 0.0001);
+
+    // Move the mouse in increments of at most 127 units until it reaches the target position
+    while (currentX != x || currentY != y) {
+      int dx = min(127, x - currentX);
+      int dy = min(127, y - currentY);
+      Mouse.move(dx, dy, 0);
+      currentX += dx;
+      currentY += dy;
+    }
+  }
+  Serial.println("Finished");  
 }
