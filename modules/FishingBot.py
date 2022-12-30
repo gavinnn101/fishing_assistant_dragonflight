@@ -122,7 +122,10 @@ class FishingBot():
             logger.add(sys.stderr, level="INFO")
 
 
-    def find_template(self, screenshot, template):
+    def find_template(self,
+                        screenshot, template,
+                        scale_min: float = 0.8, scale_max: float = 1.4, scale_steps: int = 25
+                    ):
         """Resizes template and finds the best match"""
         import imutils
         # screenshot w,h
@@ -134,7 +137,7 @@ class FishingBot():
         best_scale = None
 
         # Loop over scale values to check for template
-        for scale in np.linspace(1.0, 1.6, 25)[::-1]:  # start_scale, max_scale, total increments between start-max
+        for scale in np.linspace(scale_min, scale_max, scale_steps)[::-1]:  # start_scale, max_scale, total increments between start-max
             resized = imutils.resize(template, width = int(template.shape[1] * scale))
             # r = screenshot.shape[1] / float(resized.shape[1])  # Not used
             # Break if resized template is bigger than the screenshot. (shouldn't happen) 
@@ -171,8 +174,9 @@ class FishingBot():
         return (top_left, bottom_right)
 
 
+    # This function could probably be done in a separate thread since it takes a few seconds on slower machines/VMs.
     def count_loot(self, loot_box):
-        highest_fish, highest_conf = None, None
+        highest_fish, highest_conf, highest_scale = None, None, None
         start_time = datetime.now()
         # Get screen coordinates of bobber box
         box = (self.translate_coords(loot_box[0]), self.translate_coords(loot_box[1]))
@@ -197,9 +201,10 @@ class FishingBot():
                     if highest_conf == None or confidence > highest_conf:
                         highest_conf = confidence
                         highest_fish = fish_name
+                        highest_scale = scale
         # Assume best find is correct and count it.
         # thresholding doesn't seem to be a good option here as other templates can also rank high for some reason..
-        logger.success(f"Found {highest_fish} - {highest_conf}")
+        logger.success(f"Found {highest_fish} - {highest_conf} - {highest_scale}")
         self.fish_map[fish_name]['loot_count'] += 1
         return
         # logger.warning("Couldn't find a match looking for loot")
@@ -225,7 +230,7 @@ class FishingBot():
                 screenshot = sct.grab((box[0][0], box[0][1], box[1][0], box[1][1]))
                 screenshot = cv.cvtColor(np.array(screenshot), cv.COLOR_BGR2GRAY)
                 # Check that we found the bobber
-                confidence, location, scale = self.find_template(screenshot, self.bobber_template)
+                confidence, location, scale = self.find_template(screenshot, self.bobber_template, scale_min=0.8, scale_max=1.2, scale_steps=10)
                 logger.debug(f'Confidence: {confidence} | Location: {location} | Scale: {scale}')
                 # Keep track of bobbber position (confidence doesn't need to be high since it's a very small area to watch.)
                 if (confidence >= 0.30):
@@ -290,16 +295,19 @@ class FishingBot():
                         self.send_stats(sct.grab(self.game_window_rect))
                         continue  # Start at beginning of loop so we cast our rod
                 # Cast fishing rod
+                logger.info("Casting fishing rod")
                 self.input_helper.press_key(self.settings_helper.settings['fishing'].get('fishing_hotkey'))
                 self.rods_cast += 1
                 # Wait for bobber to appear
-                time.sleep(2.5)
+                bobber_wait_time = 2.5
+                logger.debug(f"Sleeping {bobber_wait_time} seconds for bobber to appear.")
+                time.sleep(bobber_wait_time)
                 # Grab Screenshot of game window
                 screenshot = sct.grab(self.fishing_area)
                 # Convert screenshot to gray for image matching
                 screenshot = cv.cvtColor(np.array(screenshot), cv.COLOR_BGR2GRAY)
                 # Check game for bobber
-                confidence, location, scale = self.find_template(screenshot, self.bobber_template)
+                confidence, location, scale = self.find_template(screenshot, self.bobber_template, scale_min=0.8, scale_max=1.4, scale_steps=15)
                 logger.debug(f'Potential Bobber - Confidence: {confidence} | Location: {location} | Scale: {scale}')
                 # Show Game window if DEBUG is enabled
                 if self.settings_helper.settings['user'].getboolean('debug'):
@@ -322,12 +330,13 @@ class FishingBot():
                     if (self.catch_fish(bobber_box)):
                         # Identify loot and add it to counter for progress report
                         loot_box = self.get_loot_box(location)
+                        # Sleep while loot window opens
+                        loot_window_wait = 0.65
+                        logger.debug(f"Sleeping {loot_window_wait} seconds while loot window opens")
+                        time.sleep(loot_window_wait)
+                        # Track what loot we got
                         self.count_loot(loot_box)
                         self.fish_caught += 1
-                        # Loot the fish
-                        self.input_helper.click_mouse()
-                        # Sleep for a second so it can finish looting
-                        time.sleep(1 + random.random())
                     else:
                         logger.warning('Failed to get catch.')
                         self.no_fish_casts += 1

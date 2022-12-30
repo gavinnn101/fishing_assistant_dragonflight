@@ -20,4 +20,5 @@ fishing_bot = FishingBot(settings_helper=settings_helper)
 try:
     fishing_bot.run()
 except KeyboardInterrupt:
+    fishing_bot.break_helper.stop()  # Stop break helper thread
     sys.exit("Got keyboard interrupt. Exiting.")

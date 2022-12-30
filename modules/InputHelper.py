@@ -239,18 +239,22 @@ class ArduinoHelper:
 
     def poll_cmd(self, cmd: str) -> bool:
         """Sends arduino command over serial and poll response until finished or timeout is hit."""
-        logger.debug(f'Sending cmd: {cmd}')
         timeout = 10  # seconds
         start_time = datetime.now()
         while get_duration(then=start_time, now=datetime.now(), interval='seconds') < timeout:
             try:
+                logger.debug(f'Sending cmd: {cmd}')
                 self.arduino.write(cmd.encode())
             except serial.serialutil.SerialException:
                 logger.warning('Device busy when trying to send packet')
                 time.sleep(0.1)
             else:
-                while self.arduino.readline().decode().rstrip() != "Finished":
-                    time.sleep(0.1)
-                logger.debug('Finished sending cmd')
-                return True
+                time.sleep(0.2)
+                ret = self.arduino.readline().decode().rstrip()
+                if ret == "Finished":
+                    logger.debug('Finished sending cmd')
+                    return True
+                else:
+                    logger.warning("Didnt get finished signal from arduino yet...")
+                    logger.warning(f"ret: {ret}")
         sys.exit(logger.error(f'Failed to send command: {cmd}. Exiting'))
