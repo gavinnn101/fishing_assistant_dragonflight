@@ -194,8 +194,8 @@ class FishingBot():
                     logger.debug(f"Setting base_pixel_count to {pixel_count}")
                     base_pixel_count = pixel_count
                     continue
-                elif (pixel_count - base_pixel_count < 100):  # These values are ~400-1000 in testing images. in-game 100-200
-                    # logger.debug(f"Pixel count: {pixel_count}")
+                elif (pixel_count - base_pixel_count < 10):  # These values are ~400-1000 in testing images. in-game 100-200
+                    logger.debug(f"Pixel difference: {pixel_count} - {base_pixel_count}")
                     # time.sleep(0.1)
                     continue
                 # DEBUG SCREENSHOT
