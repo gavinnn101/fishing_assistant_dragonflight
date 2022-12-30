@@ -205,7 +205,7 @@ class FishingBot():
         # Assume best find is correct and count it.
         # thresholding doesn't seem to be a good option here as other templates can also rank high for some reason..
         logger.success(f"Found {highest_fish} - {highest_conf} - {highest_scale}")
-        self.fish_map[fish_name]['loot_count'] += 1
+        self.fish_map[highest_fish]['loot_count'] += 1
         return
         # logger.warning("Couldn't find a match looking for loot")
         # logger.debug(f"Best match found: {highest_fish} - {highest_conf} - scale: {scale}")
