@@ -90,6 +90,7 @@ Fishing Assistant bot rewritten from scratch for Dragonflight. Cleaner codebase,
 * `discord_webhook_enabled = False` - Set to `True` to enable sending progress reports via webhook.
 * * Must have a valid webhook url!
 * `discord_webhook_url = webhook_url_goes_here` - Paste your discord webhook's url here.
+* * You can look at the [Discord documentation](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks) on how to create a webhook.
 
 ### TSM
 * `api_key` - Set to your TSM API key found at https://www.tradeskillmaster.com/user
