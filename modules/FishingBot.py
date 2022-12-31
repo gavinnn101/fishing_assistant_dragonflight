@@ -174,10 +174,25 @@ class FishingBot():
         return (top_left, bottom_right)
 
 
+    def check_for_loot_window(self, screenshot):
+        # Use inRange to find pixels that are black (i.e. have a value of 0-1)
+        mask = cv.inRange(screenshot, 0, 1)
+
+        # Find the contours of the black pixels
+        contours, _ = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
+        
+        # Draw a light colored box around the contours
+        for contour in contours:
+            x, y, w, h = cv.boundingRect(contour)
+            logger.info(f"Countour width: {w}")
+            cv.rectangle(screenshot, (x, y), (x+w, y+h), (200, 200, 200), 2)
+            if w > 100:
+                logger.success(f"Found w > 100: {w}")
+                return True
+
     # This function could probably be done in a separate thread since it takes a few seconds on slower machines/VMs.
     def count_loot(self, loot_box):
         highest_fish, highest_conf, highest_scale = None, None, None
-        base_pixel_count = None
         start_time = datetime.now()
         # Get screen coordinates of bobber box
         box = (self.translate_coords(loot_box[0]), self.translate_coords(loot_box[1]))
@@ -187,16 +202,7 @@ class FishingBot():
                 screenshot = sct.grab((box[0][0], box[0][1], box[1][0], box[1][1]))
                 screenshot = cv.cvtColor(np.array(screenshot), cv.COLOR_BGR2GRAY)
                 # Check that the loot window is open
-                ret, thresh = cv.threshold(screenshot,0,255,cv.THRESH_BINARY_INV)
-                pixel_count = cv.countNonZero(thresh)
-                # Set a base pixel count to substract against.
-                if base_pixel_count == None:
-                    logger.debug(f"Setting base_pixel_count to {pixel_count}")
-                    base_pixel_count = pixel_count
-                    continue
-                elif (pixel_count - base_pixel_count < 10):  # These values are ~400-1000 in testing images. in-game 100-200
-                    logger.debug(f"Pixel difference: {pixel_count} - {base_pixel_count}")
-                    # time.sleep(0.1)
+                if not self.check_for_loot_window(screenshot):
                     continue
                 # DEBUG SCREENSHOT
                 if self.settings_helper.settings['user'].getboolean('debug'):
