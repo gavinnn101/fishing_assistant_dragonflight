@@ -175,8 +175,8 @@ class FishingBot():
 
 
     def check_for_loot_window(self, screenshot):
-        # Use inRange to find pixels that are black (i.e. have a value of 0-1)
-        mask = cv.inRange(screenshot, 0, 1)
+        # Use inRange to find pixels that are black (i.e. have a value of 0)
+        mask = cv.inRange(screenshot, 0, 3)
 
         # Find the contours of the black pixels
         contours, _ = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
@@ -185,14 +185,18 @@ class FishingBot():
         for contour in contours:
             x, y, w, h = cv.boundingRect(contour)
             logger.info(f"Countour width: {w}")
-            cv.rectangle(screenshot, (x, y), (x+w, y+h), (200, 200, 200), 2)
-            if w > 100:
-                logger.success(f"Found w > 100: {w}")
+            if (w > 100):
+                logger.debug(f"Found side with width: {w}")
+                # Draw found side
+                cv.rectangle(screenshot, (x, y), (x+w, y+h), (200, 200, 200), 2)
                 return True
+        return False
+
 
     # This function could probably be done in a separate thread since it takes a few seconds on slower machines/VMs.
     def count_loot(self, loot_box):
-        highest_fish, highest_conf, highest_scale = None, None, None
+        logger.info("Tracking what loot we got")
+        highest_fish, highest_conf, highest_loc, highest_scale = None, None, None, None
         start_time = datetime.now()
         # Get screen coordinates of bobber box
         box = (self.translate_coords(loot_box[0]), self.translate_coords(loot_box[1]))
@@ -204,13 +208,8 @@ class FishingBot():
                 # Check that the loot window is open
                 if not self.check_for_loot_window(screenshot):
                     continue
-                # DEBUG SCREENSHOT
-                if self.settings_helper.settings['user'].getboolean('debug'):
-                    cv.imshow('Loot Debug', screenshot)
-                    key = cv.waitKey(1)
-                    if key == ord('q'):
-                        cv.destroyAllWindows()
-                        sys.exit()
+                # Extra time for loot window to finish appearing
+                time.sleep(0.5)
                 # Check what the loot is
                 for fish_name, fish_data in self.fish_map.items():
                     # logger.debug(f"Checking template: {template_name} \n {template}")
@@ -218,17 +217,15 @@ class FishingBot():
                     logger.debug(f'Template: {fish_name} | Confidence: {confidence} | Location: {location} | Scale: {scale}')
                     # Keep track of our best find for debugging
                     if highest_conf == None or confidence > highest_conf:
-                        highest_conf = confidence
                         highest_fish = fish_name
+                        highest_conf = confidence
+                        highest_loc = location
                         highest_scale = scale
                 # Assume best find is correct and count it.
                 # thresholding doesn't seem to be a good option here as other templates can also rank high for some reason..
                 logger.success(f"Found {highest_fish} - {highest_conf} - {highest_scale}")
                 self.fish_map[highest_fish]['loot_count'] += 1
-                return
-        # logger.warning("Couldn't find a match looking for loot")
-        # logger.debug(f"Best match found: {highest_fish} - {highest_conf} - scale: {scale}")
-        # return False
+                return highest_loc
 
 
     def catch_fish(self, bobber_box):
@@ -349,13 +346,16 @@ class FishingBot():
                     if (self.catch_fish(bobber_box)):
                         # Identify loot and add it to counter for progress report
                         loot_box = self.get_loot_box(location)
-                        # # Sleep while loot window opens
-                        # loot_window_wait = 0.65
-                        # logger.debug(f"Sleeping {loot_window_wait} seconds while loot window opens")
-                        # time.sleep(loot_window_wait)
                         # Track what loot we got
-                        self.count_loot(loot_box)
+                        loot_loc = self.count_loot(loot_box)
                         self.fish_caught += 1
+                        # Click on fish in loot window
+                        logger.info("Looting fish from loot window.")
+                        box = (self.translate_coords(loot_box[0]), self.translate_coords(loot_box[1]))
+
+                        loot_screen_coords = self.translate_coords(loot_loc, (box[0][0], box[0][1], box[1][0], box[1][1]))
+                        self.input_helper.move_mouse(loot_screen_coords[0], loot_screen_coords[1])
+                        self.input_helper.click_mouse()
                     else:
                         logger.warning('Failed to get catch.')
                         self.no_fish_casts += 1
@@ -442,9 +442,14 @@ class FishingBot():
             asyncio.run(send_discord_progress_report())
 
 
-    def translate_coords(self, coords):
+    def translate_coords(self, coords, sub_region = None):
         """Translates game coords to screen coords."""
-        return (coords[0] + self.w // 2 + self.fishing_area[0], coords[1] + self.h // 2 + self.fishing_area[1])
+        if sub_region == None:
+            sub_region_one, sub_region_two = self.fishing_area[0], self.fishing_area[1]
+        else:
+            sub_region_one, sub_region_two = sub_region[0], sub_region[1]
+        
+        return (coords[0] + self.w // 2 + sub_region_one, coords[1] + self.h // 2 + sub_region_two)
 
 
     def set_game_window_data(self):
