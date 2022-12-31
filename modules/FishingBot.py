@@ -210,6 +210,16 @@ class FishingBot():
                     continue
                 # Extra time for loot window to finish appearing
                 time.sleep(0.5)
+                # Grab new screenshot of fully opened loot window
+                screenshot = sct.grab((box[0][0], box[0][1], box[1][0], box[1][1]))
+                screenshot = cv.cvtColor(np.array(screenshot), cv.COLOR_BGR2GRAY)
+                # Loot window debug
+                if self.settings_helper.settings['user'].getboolean('debug'):
+                    cv.imshow('loot debug', screenshot)
+                    key = cv.waitKey(1)
+                    if key == ord('q'):
+                        cv.destroyAllWindows()
+                        sys.exit()                
                 # Check what the loot is
                 for fish_name, fish_data in self.fish_map.items():
                     # logger.debug(f"Checking template: {template_name} \n {template}")
