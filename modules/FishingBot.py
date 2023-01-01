@@ -48,6 +48,7 @@ class FishingBot():
         self.rods_cast = 0
         self.DIP_THRESHOLD = self.settings_helper.settings['fishing'].getint('dip_threshold')
         self.time_since_bait = None
+        self.bait_time = None
         # Initialize TSMWrapper for fish prices
         self.tsm = TSMWrapper(settings_helper=self.settings_helper)
         self.fish_map = {
@@ -295,14 +296,17 @@ class FishingBot():
         # Wait for game window to enter foreground before starting to fish
         time.sleep(1)
         while not self.break_helper.time_to_break:
-            # # Check if we should use fishing bait
-            # if self.settings_helper.settings['fishing'].getboolean('use_bait'):
-            #     self.time_since_bait = get_duration(then=self.bait_time, now=datetime.now(), interval='minutes')
-            #     if self.time_since_bait >= 30 or self.time_since_bait == None:  # Fishing bait has expired
-            #         logger.info('Applying fishing bait...')
-            #         self.input_helper.press_key(self.settings_helper.settings['fishing'].get('bait_hotkey'))
-            #         self.bait_used += 1
-            #         self.bait_time = datetime.now()
+            # Check if we should use fishing bait
+            if self.settings_helper.settings['fishing'].getboolean('use_bait'):
+                if self.bait_time == None:
+                    self.time_since_bait = 30
+                else:
+                    self.time_since_bait = get_duration(then=self.bait_time, now=datetime.now(), interval='minutes')
+                if self.time_since_bait >= 30:  # Fishing bait has expired
+                    logger.info('Applying fishing bait...')
+                    self.input_helper.press_key(self.settings_helper.settings['fishing'].get('bait_hotkey'))
+                    self.bait_used += 1
+                    self.bait_time = datetime.now()
             with mss() as sct:
                 # Chech if we need to vendor / send progress report
                 if self.settings_helper.settings['vendor'].getboolean('auto_vendor_enabled'):
