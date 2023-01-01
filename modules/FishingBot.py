@@ -358,6 +358,10 @@ class FishingBot():
                         loot_box = self.get_loot_box(location)
                         # Track what loot we got
                         loot_loc = self.count_loot(loot_box)
+                        # If it clicked nothing thinking it was a caught bobber, loot_loc will be None
+                        if loot_loc == None:
+                            self.no_fish_casts += 1
+                            continue
                         self.fish_caught += 1
                         # Click on fish in loot window
                         logger.info("Looting fish from loot window.")
