@@ -98,8 +98,14 @@ Fishing Assistant bot rewritten from scratch for Dragonflight. Cleaner codebase,
 
 # In-game Settings
 * The script now template matches the loot window to keep an accurate track of loot.
-* * For this to work, you'll want to set your game resolution to `1280x768` with `100% render scale`
-* * You'll also want to set ElvUI scale to `0.64` important!!!
+* For this to work, you'll want the following settings:
+* * Game Settings:
+* * * set resolution to windows - 1280x768
+* * * Set resolution scale to 100%
+* * * Set auto-loot to disabled
+* * ElvUI Settings:
+* * General -> General tab -> Set UI Scale to `0.64`
+* * General -> BlizzUI Improvements -> Uncheck `Loot Frame` in the General/top section.
 * I don't think it should matter to much but in testing I had the preset graphics slider set to 1/lowest.
 
 # Running Script
