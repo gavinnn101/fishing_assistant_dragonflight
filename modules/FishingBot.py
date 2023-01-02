@@ -198,8 +198,8 @@ class FishingBot():
         while get_duration(then=start_time, now=datetime.now(), interval='seconds') < 3 and self.break_helper.time_to_break == False:
             with mss.mss() as sct:
                 # Take screenshot of the bobber_box area
-                screenshot = sct.grab((box[0][0], box[0][1], box[1][0], box[1][1]))
-                screenshot = cv.cvtColor(np.array(screenshot), cv.COLOR_BGR2GRAY)
+                screenshot_rgb = sct.grab((box[0][0], box[0][1], box[1][0], box[1][1]))
+                screenshot = cv.cvtColor(np.array(screenshot_rgb), cv.COLOR_BGR2GRAY)
                 # Check that the loot window is open
                 if not self.check_for_loot_window(screenshot):
                     continue
@@ -228,7 +228,7 @@ class FishingBot():
                         highest_scale = scale
                 # If it's a recipe bottle or a coin, save a screenshot so we can crop it for better results
                 if highest_fish in ["recipe_bottle", "copper_coin"]:
-                    mss.tools.to_png(screenshot.rgb, screenshot.size, output=f'{highest_fish}-{highest_conf}.png')                
+                    mss.tools.to_png(screenshot_rgb.rgb, screenshot_rgb.size, output=f'{highest_fish}-{highest_conf}.png')
                 # Assume best find is correct and count it.
                 # thresholding doesn't seem to be a good option here as other templates can also rank high for some reason..
                 logger.success(f"Found {highest_fish} - {highest_conf} - {highest_scale}")
