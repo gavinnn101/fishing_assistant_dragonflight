@@ -296,6 +296,8 @@ class FishingBot():
         # Wait for game window to enter foreground before starting to fish
         time.sleep(1)
         while not self.break_helper.time_to_break:
+            # Allow a break to start if needed before we start catching a fish
+            self.break_helper.break_allowed = True
             # Check if we should use fishing bait
             if self.settings_helper.settings['fishing'].getboolean('use_bait'):
                 if self.bait_time == None:
@@ -324,6 +326,8 @@ class FishingBot():
                         # Print progress report / stats
                         self.send_stats(sct.grab(self.game_window_rect))
                         continue  # Start at beginning of loop so we cast our rod
+                # Don't allow a break to start while we're catching a fish
+                self.break_helper.break_allowed = False
                 # Cast fishing rod
                 logger.info("Casting fishing rod")
                 self.input_helper.press_key(self.settings_helper.settings['fishing'].get('fishing_hotkey'))

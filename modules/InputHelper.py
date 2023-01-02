@@ -249,7 +249,7 @@ class ArduinoHelper:
                 logger.warning('Device busy when trying to send packet')
                 time.sleep(0.1)
             else:
-                time.sleep(0.2)
+                time.sleep(0.4)
                 ret = self.arduino.readline().decode().rstrip()
                 if ret == "Finished":
                     logger.debug('Finished sending cmd')

@@ -25,6 +25,7 @@ class BreakHelper():
         self.play_start_time = None
         self.break_start_time = None
         self.time_to_break = False
+        self.break_allowed = False
 
 
     def start(self):
@@ -104,7 +105,7 @@ class BreakHelper():
         lower_bound, upper_bound = self.playtime_duration_range.split(',')
         play_time = random.randrange(int(lower_bound), int(upper_bound))
         logger.info(f'Playing for {play_time} minutes before breaking.')
-        while get_duration(then=self.play_start_time, now=datetime.now(), interval='minutes') < play_time:
+        while (get_duration(then=self.play_start_time, now=datetime.now(), interval='minutes') < play_time) or (self.break_allowed == False):
             time.sleep(1)
         logger.info('Setting time_to_break to True')
         self.time_to_break = True
