@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 import cv2 as cv
+import mss.tools
 import numpy as np
 import os
 import random
@@ -9,7 +10,6 @@ import time
 from datetime import datetime
 from discord import Webhook, Embed, File
 from loguru import logger
-from mss import mss
 from win32gui import FindWindow, GetWindowRect, GetClientRect
 
 from modules.BreakHelper import BreakHelper
@@ -156,8 +156,6 @@ class FishingBot():
         # Return best match
         return (best_conf, best_loc, best_scale)
 
-
-
     def get_bobber_box(self, location):
         """Returns coordinates of box to watch around found bobber."""
         # Bobber coordinates
@@ -174,25 +172,21 @@ class FishingBot():
         bottom_right = (top_left[0] + self.w + 100, top_left[1] + self.h + 50)  # size of box
         return (top_left, bottom_right)
 
-
     def check_for_loot_window(self, screenshot):
         # Use inRange to find pixels that are black (i.e. have a value of 0)
         mask = cv.inRange(screenshot, 0, 3)
-
         # Find the contours of the black pixels
         contours, _ = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
-        
         # Draw a light colored box around the contours
         for contour in contours:
             x, y, w, h = cv.boundingRect(contour)
             logger.info(f"Countour width: {w}")
-            if (w > 100):
+            if (w > 100):  # the line that it detects is about ~130-160ish pixels
                 logger.debug(f"Found side with width: {w}")
                 # Draw found side
                 cv.rectangle(screenshot, (x, y), (x+w, y+h), (200, 200, 200), 2)
                 return True
         return False
-
 
     # This function could probably be done in a separate thread since it takes a few seconds on slower machines/VMs.
     def count_loot(self, loot_box):
@@ -201,8 +195,8 @@ class FishingBot():
         start_time = datetime.now()
         # Get screen coordinates of bobber box
         box = (self.translate_coords(loot_box[0]), self.translate_coords(loot_box[1]))
-        while get_duration(then=start_time, now=datetime.now(), interval='seconds') < 3:
-            with mss() as sct:
+        while get_duration(then=start_time, now=datetime.now(), interval='seconds') < 3 and self.break_helper.time_to_break == False:
+            with mss.mss() as sct:
                 # Take screenshot of the bobber_box area
                 screenshot = sct.grab((box[0][0], box[0][1], box[1][0], box[1][1]))
                 screenshot = cv.cvtColor(np.array(screenshot), cv.COLOR_BGR2GRAY)
@@ -234,7 +228,6 @@ class FishingBot():
                         highest_scale = scale
                 # If it's a recipe bottle or a coin, save a screenshot so we can crop it for better results
                 if highest_fish in ["recipe_bottle", "copper_coin"]:
-                    import mss.tools
                     mss.tools.to_png(screenshot.rgb, screenshot.size, output=f'{highest_fish}-{highest_conf}.png')                
                 # Assume best find is correct and count it.
                 # thresholding doesn't seem to be a good option here as other templates can also rank high for some reason..
@@ -255,8 +248,8 @@ class FishingBot():
         
         # Get screen coordinates of bobber box
         box = (self.translate_coords(bobber_box[0]), self.translate_coords(bobber_box[1]))
-        while get_duration(then=start_time, now=datetime.now(), interval='seconds') < self.settings_helper.settings['fishing'].getint('timeout_threshold') and not self.break_helper.time_to_break:
-            with mss() as sct:
+        while get_duration(then=start_time, now=datetime.now(), interval='seconds') < self.settings_helper.settings['fishing'].getint('timeout_threshold') and self.break_helper.time_to_break == False:
+            with mss.mss() as sct:
                 # Take screenshot of the bobber_box area
                 screenshot = sct.grab((box[0][0], box[0][1], box[1][0], box[1][1]))
                 screenshot = cv.cvtColor(np.array(screenshot), cv.COLOR_BGR2GRAY)
@@ -301,6 +294,7 @@ class FishingBot():
         time.sleep(1)
         while not self.break_helper.time_to_break:
             # Allow a break to start if needed before we start catching a fish
+            logger.debug("Setting break_allowed to True")
             self.break_helper.break_allowed = True
             # Check if we should use fishing bait
             if self.settings_helper.settings['fishing'].getboolean('use_bait'):
@@ -313,7 +307,7 @@ class FishingBot():
                     self.input_helper.press_key(self.settings_helper.settings['fishing'].get('bait_hotkey'))
                     self.bait_used += 1
                     self.bait_time = datetime.now()
-            with mss() as sct:
+            with mss.mss() as sct:
                 # Chech if we need to vendor / send progress report
                 if self.settings_helper.settings['vendor'].getboolean('auto_vendor_enabled'):
                     # Check if it's time to get on vendor mount to sell gray items
@@ -331,6 +325,7 @@ class FishingBot():
                         self.send_stats(sct.grab(self.game_window_rect))
                         continue  # Start at beginning of loop so we cast our rod
                 # Don't allow a break to start while we're catching a fish
+                logger.debug("Setting break_allowed to False")
                 self.break_helper.break_allowed = False
                 # Cast fishing rod
                 logger.info("Casting fishing rod")
@@ -459,7 +454,6 @@ class FishingBot():
                     for fish in self.fish_map:
                         if self.fish_map[fish]['loot_count'] > 0:
                             embed.add_field(name=fish, value=self.fish_map[fish]['loot_count'])
-                    import mss.tools
                     mss.tools.to_png(game_screenshot.rgb, game_screenshot.size, output='game_screenshot.png')
                     file = File("game_screenshot.png", filename="game_screenshot.png")
                     embed.set_image(url="attachment://game_screenshot.png")
