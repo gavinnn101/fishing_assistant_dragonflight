@@ -232,6 +232,10 @@ class FishingBot():
                         highest_conf = confidence
                         highest_loc = location
                         highest_scale = scale
+                # If it's a recipe bottle or a coin, save a screenshot so we can crop it for better results
+                if highest_fish in ["recipe_bottle", "copper_coin"]:
+                    import mss.tools
+                    mss.tools.to_png(screenshot.rgb, screenshot.size, output=f'{highest_fish}-{highest_conf}.png')                
                 # Assume best find is correct and count it.
                 # thresholding doesn't seem to be a good option here as other templates can also rank high for some reason..
                 logger.success(f"Found {highest_fish} - {highest_conf} - {highest_scale}")
