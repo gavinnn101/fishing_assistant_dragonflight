@@ -13,29 +13,33 @@ class TSMWrapper():
         self.fish_map = {
             'scalebelly_mackerel': {
                 'id': 194730,
-                'price': 0,},
+                'price': 0,
+                },
             'temporal_dragonhead': {
                 'id': 194969,
-                'price': 0,},
+                'price': 0,
+                },
             'thousandbite_piranha': {
                 'id': 194966,
-                'price': 0,},
+                'price': 0,
+                },
             'islefin_dorado': {
                 'id': 194970,
-                'price': 0,},
+                'price': 0,
+                },
             'cerulean_spinefish': {
                 'id': 194968,
                 'price': 0
-            },
+                },
             'aileron_seamoth': {
                 'id': 194967,
                 'price': 0
-            },
+                },
             'dull_spined_clam': {
                 'id': 198395,
                 'price': 0
+                },
             }
-        }
         # Get TSM API token to fetch our pricing-api access token
         self.api_token = self.settings_manager.settings['tsm'].get('api_key')
 

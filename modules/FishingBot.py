@@ -92,10 +92,20 @@ class FishingBot():
                 'loot_count': 0,
                 'gold_earned': 0,
             },
+            'silver_coin': {
+                'template': None,
+                'loot_count': 0,
+                'gold_earned': 0
+            },
             'recipe_bottle': {
                 'template': None,
                 'loot_count': 0,
                 'gold_earned': 0,
+            },
+            'darkmoon_cards': {
+                'template': None,
+                'loot_count': 0,
+                'gold_earned': 0
             }
         }
         # Set loot templates
