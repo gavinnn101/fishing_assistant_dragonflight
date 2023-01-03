@@ -6,5 +6,6 @@ mss
 pyautogui
 pywin32
 pyHM
+pytz
 pyserial
 loguru

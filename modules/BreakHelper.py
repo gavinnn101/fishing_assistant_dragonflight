@@ -1,3 +1,4 @@
+import pytz
 import random
 import subprocess
 import threading
@@ -37,6 +38,36 @@ class BreakHelper():
 
     def stop(self):
         self.stopped = True
+
+
+    def check_tuesday_reset(self):
+        """Return True if the current time is between 6:00 A.M. PST and 9:30 A.M. PST"""
+        # Get the current date and time
+        current_time = datetime.datetime.now()
+
+        # Get the current time in PST
+        pst_tz = pytz.timezone('US/Pacific')
+        pst_time = current_time.astimezone(pst_tz)
+
+        # Check if the current day is Tuesday
+        if pst_time.weekday() == 1:
+            # Check if the current time is between 6:00 A.M. and 9:30 A.M. PST
+            if pst_time.hour >= 6 and pst_time.hour < 9:
+                return True
+            elif pst_time.hour == 9 and pst_time.minute < 30:
+                return True
+        return False
+
+
+    def check_break_required(self):
+        """Check if it's time to take a break."""
+        lower_bound, upper_bound = self.playtime_duration_range.split(',')
+        play_time = random.randrange(int(lower_bound), int(upper_bound))
+        logger.info(f'Playing for {play_time} minutes before breaking.')
+        while (get_duration(then=self.play_start_time, now=datetime.now(), interval='minutes') < play_time) or (self.break_allowed == False) and not (self.check_tuesday_reset()):
+            time.sleep(1)
+        logger.info('Setting time_to_break to True')
+        self.time_to_break = True
 
 
     def close_game(self):
@@ -98,17 +129,6 @@ class BreakHelper():
             rate_limit_retry=True,
             content=break_finished_msg)
             webhook.execute()
-
-
-    def check_break_required(self):
-        """Check if it's time to take a break."""
-        lower_bound, upper_bound = self.playtime_duration_range.split(',')
-        play_time = random.randrange(int(lower_bound), int(upper_bound))
-        logger.info(f'Playing for {play_time} minutes before breaking.')
-        while (get_duration(then=self.play_start_time, now=datetime.now(), interval='minutes') < play_time) or (self.break_allowed == False):
-            time.sleep(1)
-        logger.info('Setting time_to_break to True')
-        self.time_to_break = True
 
 
     def run(self):
