@@ -4,9 +4,9 @@ import subprocess
 import threading
 import time
 from datetime import datetime
-from discord_webhook import DiscordWebhook
 from loguru import logger
-from utility.util import get_duration
+from LoggingHelper import LoggingHelper
+from utility.util import has_time_passed
 
 
 class BreakHelper():
@@ -17,13 +17,12 @@ class BreakHelper():
         # Get breaks settings from settings.ini
         self.playtime_duration_range = self.settings_helper.settings['breaks']['playtime_duration_range']
         self.break_duration_range = self.settings_helper.settings['breaks']['break_duration_range']
-        # Input helper
+        # Initialize input helper
         self.input_helper = input_helper
-        # Get webhook url
-        self.webhook_url = self.settings_helper.settings['webhook']['DISCORD_WEBHOOK_URL']
+        # Initialize logging helper
+        self.logging_helper = LoggingHelper(self.settings_helper)
         # Get WoW path
         self.wow_path = self.settings_helper.settings['breaks']['wow_path']
-        self.play_start_time = None
         self.break_start_time = None
         self.time_to_break = False
         self.break_allowed = False
@@ -41,7 +40,7 @@ class BreakHelper():
 
 
     def check_tuesday_reset(self):
-        """Return True if the current time is between 6:00 A.M. PST and 9:30 A.M. PST"""
+        """If it's Tuesday between 6:00 AM and 9:30 AM PST, return the amount of minutes until 9:30."""
         # Get the current date and time
         current_time = datetime.datetime.now()
 
@@ -49,25 +48,20 @@ class BreakHelper():
         pst_tz = pytz.timezone('US/Pacific')
         pst_time = current_time.astimezone(pst_tz)
 
+        # Create a datetime object representing 9:30 A.M. PST on the current day
+        target_time = pst_time.replace(hour=9, minute=30, second=0, microsecond=0)
+
+        # Calculate the difference between the current time and 9:30 A.M. PST in minutes
+        delta = target_time - pst_time
+        minutes = delta.total_seconds() / 60
+
         # Check if the current day is Tuesday
-        if pst_time.weekday() == 1:
-            # Check if the current time is between 6:00 A.M. and 9:30 A.M. PST
-            if pst_time.hour >= 6 and pst_time.hour < 9:
-                return True
-            elif pst_time.hour == 9 and pst_time.minute < 30:
-                return True
-        return False
-
-
-    def check_break_required(self):
-        """Check if it's time to take a break."""
-        lower_bound, upper_bound = self.playtime_duration_range.split(',')
-        play_time = random.randrange(int(lower_bound), int(upper_bound))
-        logger.info(f'Playing for {play_time} minutes before breaking.')
-        while (get_duration(then=self.play_start_time, now=datetime.now(), interval='minutes') < play_time) or (self.break_allowed == False) and not (self.check_tuesday_reset()):
-            time.sleep(1)
-        logger.info('Setting time_to_break to True')
-        self.time_to_break = True
+        if pst_time.weekday() != 1:
+            # Negative minutes means it isn't between our break hours
+            return -1
+        # Check if the current time is between 6:00 A.M. and 9:30 A.M. PST
+        elif (pst_time.hour >= 6 and pst_time.hour < 9) or (pst_time.hour == 9 and pst_time.minute < 30):
+            return minutes
 
 
     def close_game(self):
@@ -103,38 +97,56 @@ class BreakHelper():
         self.stop()
 
 
-    def take_break(self):
-        # Get random time in minutes to take a break for
-        lower_bound, upper_bound = self.break_duration_range.split(',')
-        break_time = random.randrange(int(lower_bound), int(upper_bound))
+    def take_break(self, break_time: int = None):
+        """Sends a discord notification if enabled about the break and then sleeps until break is finished.
+        
+        Params:
+            break_time: The amount of minutes to take a break for. If none are provided, a random time will be used within the limit set in settings.ini.
+        """
+        if break_time == None:
+            # Get random time in minutes to take a break for
+            lower_bound, upper_bound = map(int, self.break_duration_range.split(','))
+            break_time = random.randrange(lower_bound, upper_bound)
         # Notify that we're about to take a break
         break_msg = f'Break Notification: Taking a break for: {break_time} minutes.'
         logger.info(break_msg)
         if self.settings_helper.settings['webhook'].getboolean('discord_webhook_enabled'):
-            webhook = DiscordWebhook(
-            url=self.webhook_url,
-            rate_limit_retry=True,
-            content=break_msg)
-            webhook.execute()
+            self.logging_helper.send_discord_message(title="Break Started Notification", content=break_msg)
         self.break_start_time = datetime.now()
         # Loop until our break duration is over.
-        while get_duration(then=self.break_start_time, now=datetime.now(), interval='minutes') < break_time:
+        while not has_time_passed(start_time=self.break_start_time, interval='minutes', threshold=break_time):
             time.sleep(1)
         # Notify that the break is finished
         break_finished_msg = f'Break Notification: {break_time} minute break finished.'
         logger.info(break_finished_msg)
         if self.settings_helper.settings['webhook'].getboolean('discord_webhook_enabled'):
-            webhook = DiscordWebhook(
-            url=self.webhook_url,
-            rate_limit_retry=True,
-            content=break_finished_msg)
-            webhook.execute()
+            self.logging_helper.send_discord_message(title="Break Finished Notification", content=break_msg)
+
+
+
+    def handle_break(self, break_time = None):
+        """Wrapper function to handle closing the game, taking a break, and launching the game."""
+        # Close current game client
+        self.close_game()
+        # Loop for the duration of the break
+        self.take_break(break_time=break_time)
+        # Relaunch the game client
+        self.launch_game()        
 
 
     def run(self):
+        # Get random amount of time (within settings limits) to play before breaking
+        lower_bound, upper_bound = map(int, self.playtime_duration_range.split(','))
+        minutes_to_play = random.randrange(lower_bound, upper_bound)
+        logger.info(f'Playing for {minutes_to_play} minutes before breaking.')
+        play_start_time = datetime.now()
         while not self.stopped:
-            self.play_start_time = datetime.now()
-            self.check_break_required()
-            self.close_game()
-            self.take_break()
-            self.launch_game()
+            # Early return if we're in the middle of a fishing loop
+            if self.break_allowed == False:
+                continue
+            # Check if we need to take an extended break for Tuesday reset
+            minutes = self.check_tuesday_reset()
+            if minutes > 0:
+                self.handle_break(break_time=minutes)
+            elif has_time_passed(start_time=play_start_time, interval='minutes', threshold=minutes_to_play):
+                self.handle_break()

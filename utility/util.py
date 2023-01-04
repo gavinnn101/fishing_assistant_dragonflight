@@ -43,3 +43,14 @@ def get_duration(then, now = datetime.now(), interval = "default"):
         'seconds': int(seconds()),
         'default': totalDuration()
     }[interval]
+
+
+def elapsed_time(start_time, interval):
+  """Returns the time that has passed since the start_time."""
+  # interval =  "{} years, {} days, {} hours, {} minutes and {} seconds"
+  return get_duration(then=start_time, now=datetime.now(), interval=interval)
+
+
+def has_time_passed(start_time, interval, threshold):
+  """Checks if the time that has passed since the start time is greater than the threshold provided."""
+  return elapsed_time(start_time=start_time, interval=interval) > threshold
