@@ -5,7 +5,7 @@ import threading
 import time
 from datetime import datetime
 from loguru import logger
-from LoggingHelper import LoggingHelper
+from modules.LoggingHelper import LoggingHelper
 from utility.util import has_time_passed
 
 
