@@ -42,7 +42,7 @@ class BreakHelper():
     def check_tuesday_reset(self):
         """If it's Tuesday between 6:00 AM and 9:30 AM PST, return the amount of minutes until 9:30."""
         # Get the current date and time
-        current_time = datetime.datetime.now()
+        current_time = datetime.now()
 
         # Get the current time in PST
         pst_tz = pytz.timezone('US/Pacific')
