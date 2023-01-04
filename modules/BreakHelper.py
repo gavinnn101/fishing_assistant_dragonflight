@@ -141,6 +141,7 @@ class BreakHelper():
         logger.info(f'Playing for {minutes_to_play} minutes before breaking.')
         play_start_time = datetime.now()
         while not self.stopped:
+            time.sleep(1)
             # Early return if we're in the middle of a fishing loop
             if self.break_allowed == False:
                 continue
