@@ -97,6 +97,11 @@ class FishingBot():
                 'loot_count': 0,
                 'gold_earned': 0
             },
+            'gold_coin': {
+                'template': None,
+                'loot_count': 0,
+                'gold_earned': 0
+            },
             'recipe_bottle': {
                 'template': None,
                 'loot_count': 0,
