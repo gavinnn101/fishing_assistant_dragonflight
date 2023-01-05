@@ -126,6 +126,8 @@ class BreakHelper():
 
     def handle_break(self, break_time = None):
         """Wrapper function to handle closing the game, taking a break, and launching the game."""
+        # Set flag for FishingBot to stop
+        self.time_to_break = True
         # Close current game client
         self.close_game()
         # Loop for the duration of the break
