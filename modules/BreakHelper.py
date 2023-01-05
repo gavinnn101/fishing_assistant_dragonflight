@@ -120,7 +120,7 @@ class BreakHelper():
         break_finished_msg = f'Break Notification: {break_time} minute break finished.'
         logger.info(break_finished_msg)
         if self.settings_helper.settings['webhook'].getboolean('discord_webhook_enabled'):
-            self.logging_helper.send_discord_message(title="Break Finished Notification", content=break_msg)
+            self.logging_helper.send_discord_message(title="Break Finished Notification", content=break_finished_msg)
 
 
 
