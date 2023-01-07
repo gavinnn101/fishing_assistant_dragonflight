@@ -93,8 +93,6 @@ class BreakHelper():
         logger.debug('Loading into game / character')
         self.input_helper.press_key('enter')
         time.sleep(60)
-        self.time_to_break = False
-        self.stop()
 
 
     def take_break(self, break_time: int = None):
@@ -108,19 +106,13 @@ class BreakHelper():
             lower_bound, upper_bound = map(int, self.break_duration_range.split(','))
             break_time = random.randrange(lower_bound, upper_bound)
         # Notify that we're about to take a break
-        break_msg = f'Break Notification: Taking a break for: {break_time} minutes.'
-        logger.info(break_msg)
-        if self.settings_helper.settings['webhook'].getboolean('discord_webhook_enabled'):
-            self.logging_helper.send_discord_message(title="Break Started Notification", content=break_msg)
+        self.logging_helper.send_break_notification(break_time=break_time)
         self.break_start_time = datetime.now()
         # Loop until our break duration is over.
         while not has_time_passed(start_time=self.break_start_time, interval='minutes', threshold=break_time):
             time.sleep(1)
         # Notify that the break is finished
-        break_finished_msg = f'Break Notification: {break_time} minute break finished.'
-        logger.info(break_finished_msg)
-        if self.settings_helper.settings['webhook'].getboolean('discord_webhook_enabled'):
-            self.logging_helper.send_discord_message(title="Break Finished Notification", content=break_finished_msg)
+        self.logging_helper.send_break_notification(break_time=break_time, break_end=True)
 
 
 
@@ -133,7 +125,10 @@ class BreakHelper():
         # Loop for the duration of the break
         self.take_break(break_time=break_time)
         # Relaunch the game client
-        self.launch_game()        
+        self.launch_game()
+        # End break
+        self.time_to_break = False
+        self.stop()   
 
 
     def run(self):
