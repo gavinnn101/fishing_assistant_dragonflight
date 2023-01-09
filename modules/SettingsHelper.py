@@ -1,7 +1,7 @@
 import configparser
+import os
 import sys
 from loguru import logger
-import os
 
 class SettingsHelper:
     """Wrapper utility class for config settings."""
@@ -43,7 +43,7 @@ class SettingsHelper:
             config.set("user", "input_method", "virtual")
             # Add fishing settings to config
             config.set("fishing", "fishing_hotkey", "z")
-            config.set("fishing", "min_confidence", "0.50")
+            config.set("fishing", "min_confidence", "0.60")
             config.set("fishing", "timeout_threshold", "20")
             config.set("fishing", "dip_threshold", "4")
             config.set("fishing", "bobber_image_name", "bobber.png")
@@ -58,10 +58,22 @@ class SettingsHelper:
             # Add vendor settings to config
             config.add_section("vendor")
             config.set("vendor", "auto_vendor_enabled", "False")
-            config.set("vendor", "mammoth_hotkey", "8")
-            config.set("vendor", "target_hotkey", "9")
-            config.set("vendor", "interact_hotkey", "0")
+            config.set("vendor", "mammoth_hotkey", "1")
+            config.set("vendor", "target_hotkey", "2")
+            config.set("vendor", "interact_hotkey", "3")
             config.set("vendor", "vendor_interval", "30")
+            # Add auto guild bank deposit settings to config
+            config.add_section("bank_deposit")
+            config.set("bank_deposit", "auto_deposit_enabled", "False")
+            config.set("bank_deposit", "guild_bank_hotkey", "4")
+            config.set("bank_deposit", "bankstack_fill_hotkey", "5")
+            config.set("bank_deposit", "view_one_hotkey", "6")
+            config.set("bank_deposit", "view_two_hotkey", "7")
+            # Add auto open recipe bottle settings to config
+            config.add_section("open_recipes")
+            config.set("open_recipes", "auto_open_recipes_enabled", "False")            
+            config.set("open_recipes", "open_recipe_hotkey", "8")
+            config.set("open_recipes", "toggle_autoloot_hotkey", "9")
             # Add Discord Webhook settings to config
             config.add_section("webhook")
             config.set("webhook", "discord_webhook_enabled", "False")

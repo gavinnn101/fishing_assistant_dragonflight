@@ -1,11 +1,15 @@
 import sys
 from loguru import logger
 
-from modules.SettingsHelper import SettingsHelper
 from modules.FishingBot import FishingBot
+from modules.LoggingHelper import LoggingHelper
+from modules.SettingsHelper import SettingsHelper
 
 # Initialize SettingsHelper
 settings_helper = SettingsHelper()
+
+# Initialize LoggingHelper
+logging_helper = LoggingHelper(settings_helper=settings_helper)
 
 if not settings_helper.settings['user'].getboolean('debug'):
     # Set log level to INFO
@@ -13,7 +17,7 @@ if not settings_helper.settings['user'].getboolean('debug'):
     logger.add(sys.stderr, level="INFO")
 
 # Initialize Fishing Bot
-fishing_bot = FishingBot(settings_helper=settings_helper)
+fishing_bot = FishingBot(settings_helper=settings_helper, logging_helper=logging_helper)
 
 # Start bot
 # bot class checks for breaks and input method internally

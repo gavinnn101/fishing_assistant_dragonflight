@@ -1,5 +1,3 @@
-import aiohttp
-import asyncio
 import cv2 as cv
 import mss.tools
 import numpy as np
@@ -8,22 +6,22 @@ import random
 import sys
 import time
 from datetime import datetime
-from discord import Webhook, Embed, File
 from loguru import logger
 from win32gui import FindWindow, GetWindowRect, GetClientRect
 
 from modules.BreakHelper import BreakHelper
 from modules.InputHelper import InputHelper
-from modules.TSMWrapper import TSMWrapper
 from utility.util import get_duration
 
 
 class FishingBot():
     stopped = True
     """Class to handle in-game fishing automation."""
-    def __init__(self, settings_helper, *args, **kwargs):
+    def __init__(self, settings_helper, logging_helper, *args, **kwargs):
         # Initialize settings helper
         self.settings_helper = settings_helper
+        # Initialize logging helper
+        self.logging_helper = logging_helper
         # Get webhook url
         self.webhook_url = self.settings_helper.settings['webhook']['DISCORD_WEBHOOK_URL']
         # Get reaction time settings
@@ -34,7 +32,7 @@ class FishingBot():
         # Initialize input helper
         self.input_helper = InputHelper(settings_helper=self.settings_helper)
         # Initialize Break handler
-        self.break_helper = BreakHelper(settings_helper=self.settings_helper, input_helper=self.input_helper)
+        self.break_helper = BreakHelper(settings_helper=self.settings_helper, input_helper=self.input_helper, logging_helper=self.logging_helper)
         self.breaks_enabled = self.settings_helper.settings['breaks'].getboolean('breaks_enabled')
         # Bobber template
         self.bobber_template_name = self.settings_helper.settings['fishing'].get('bobber_image_name')
@@ -42,15 +40,16 @@ class FishingBot():
         self.bobber_template = cv.imread(self.bobber_template_path, 0)
         self.w, self.h = self.bobber_template.shape[::-1]
         # Initialize fishing stats
-        self.fish_caught = 0
-        self.no_fish_casts = 0
-        self.bait_used = 0
-        self.rods_cast = 0
-        self.DIP_THRESHOLD = self.settings_helper.settings['fishing'].getint('dip_threshold')
+        self.fishing_stats = {
+            "fish_caught": 0,
+            "no_fish_casts": 0,
+            "bait_used": 0,
+            "rods_cast": 0,
+        }
+        self.dip_threshold = self.settings_helper.settings['fishing'].getint('dip_threshold')
         self.time_since_bait = None
         self.bait_time = None
-        # Initialize TSMWrapper for fish prices
-        self.tsm = TSMWrapper(settings_helper=self.settings_helper)
+        # Initialize fish map for loot tracker
         self.fish_map = {
             'scalebelly_mackerel': {
                 'template': None,
@@ -121,6 +120,25 @@ class FishingBot():
         self.auto_vendor_enabled = self.settings_helper.settings['vendor'].get('auto_vendor_enabled')
         if self.auto_vendor_enabled:
             self.vendor_time = self.start_time
+        
+        # Initialize auto guild bank if enabled
+        self.auto_deposit_enabled = self.settings_helper.settings['bank_deposit'].getboolean('auto_deposit_enabled')
+        if self.auto_deposit_enabled:
+            self.deposit_time = self.start_time
+            # Init hotkeys
+            self.guild_bank_hotkey = self.settings_helper.settings['bank_deposit'].get('guild_bank_hotkey')
+            self.bankstack_fill_hotkey = self.settings_helper.settings['bank_deposit'].get('bankstack_fill_hotkey')
+            self.view_one_hotkey = self.settings_helper.settings['bank_deposit'].get('view_one_hotkey')
+            self.view_two_hotkey = self.settings_helper.settings['bank_deposit'].get('view_two_hotkey')
+        
+        # Initialize auto open recipe bottles if enabled
+        self.open_recipes_enabled = self.settings_helper.settings['open_recipes'].getboolean('auto_open_recipes_enabled')
+        if self.open_recipes_enabled:
+            # Init hotkeys
+            self.open_recipe_hotkey = self.settings_helper.settings['open_recipes'].get('open_recipe_hotkey')
+            self.toggle_autoloot_hotkey = self.settings_helper.settings['open_recipes'].get('toggle_autoloot_hotkey')
+            # Track how many bottles we've opened
+            self.recipe_bottles_opened = 0
 
         # Game Client Variables
         self.game_window_name = "World of Warcraft"
@@ -195,7 +213,7 @@ class FishingBot():
         # Draw a light colored box around the contours
         for contour in contours:
             x, y, w, h = cv.boundingRect(contour)
-            logger.info(f"Countour width: {w}")
+            logger.debug(f"Countour width: {w}")
             if (w > 100):  # the line that it detects is about ~130-160ish pixels
                 logger.debug(f"Found side with width: {w}")
                 # Draw found side
@@ -282,8 +300,8 @@ class FishingBot():
                         bottom_right = (location[0] + self.w, location[1] + self.h)
                         cv.rectangle(screenshot, location, bottom_right, (0,255,0), 1)
                     # Check if the new bobber_y_value is greater than our difference threshold
-                    logger.debug(f'Checking if {location[1]} - {average_y_value} >= {self.DIP_THRESHOLD}')
-                    if (abs(location[1] - average_y_value) >= self.DIP_THRESHOLD):
+                    logger.debug(f'Checking if {location[1]} - {average_y_value} >= {self.dip_threshold}')
+                    if (abs(location[1] - average_y_value) >= self.dip_threshold):
                         # Change in y position > threshold so we're going to click the bobber / catch the fish.
                         self.input_helper.click_mouse()
                         return True
@@ -311,6 +329,11 @@ class FishingBot():
             # Allow a break to start if needed before we start catching a fish
             logger.debug("Setting break_allowed to True")
             self.break_helper.break_allowed = True
+            # Sleep for a second to see if a break activates
+            time.sleep(1 + random.random())
+            # Don't allow a break to start while we're doing important tasks like catching a fish or depositing items.
+            logger.debug("Setting break_allowed to False")
+            self.break_helper.break_allowed = False
             # Check if we should use fishing bait
             if self.settings_helper.settings['fishing'].getboolean('use_bait'):
                 if self.bait_time == None:
@@ -320,16 +343,37 @@ class FishingBot():
                 if self.time_since_bait >= 30:  # Fishing bait has expired
                     logger.info('Applying fishing bait...')
                     self.input_helper.press_key(self.settings_helper.settings['fishing'].get('bait_hotkey'))
-                    self.bait_used += 1
+                    self.fishing_stats['bait_used'] += 1
                     self.bait_time = datetime.now()
+            # Check if we should open recipe bottles
+            if self.open_recipes_enabled:
+                bottles_to_open = self.fish_map['recipe_bottle']['loot_count'] - self.recipe_bottles_opened
+                if bottles_to_open > 0:
+                    self.open_recipe_bottles(recipe_bottle_count=bottles_to_open)
+                    self.recipe_bottles_opened += bottles_to_open
+                    continue
+            # Check if we should deposit items into guild bank
+            if self.auto_deposit_enabled:
+                # Check if we should deposit items. (if 2 hours has passed)
+                minutes_before_banking = 120
+                time_since_deposit = get_duration(then=self.deposit_time, now=datetime.now(), interval='minutes')
+                if time_since_deposit >= minutes_before_banking:
+                    self.auto_guild_bank(
+                        guild_bank_hotkey=self.guild_bank_hotkey,
+                        view_one_hotkey=self.view_one_hotkey,
+                        view_two_hotkey=self.view_two_hotkey,
+                        fill_hotkey=self.bankstack_fill_hotkey,
+                        interact_hotkey=self.settings_helper.settings['vendor'].get('interact_hotkey')
+                        )
+                    self.deposit_time = datetime.now()
+                    continue
             with mss.mss() as sct:
                 # Chech if we need to vendor / send progress report
-                if self.settings_helper.settings['vendor'].getboolean('auto_vendor_enabled'):
+                if self.auto_vendor_enabled:
                     # Check if it's time to get on vendor mount to sell gray items
                     time_since_vendor = get_duration(then=self.vendor_time, now=datetime.now(), interval='minutes')
                     if time_since_vendor >= self.settings_helper.settings['vendor'].getint('vendor_interval'):
                         logger.info('Now vendoring trash...')
-                        # time.sleep(5)
                         self.auto_vendor(
                             self.settings_helper.settings['vendor'].get('mammoth_hotkey'),
                             self.settings_helper.settings['vendor'].get('target_hotkey'),
@@ -337,15 +381,12 @@ class FishingBot():
                             )
                         self.vendor_time = datetime.now()
                         # Print progress report / stats
-                        self.send_stats(sct.grab(self.game_window_rect))
+                        self.logging_helper.send_progress_report(fish_map=self.fish_map, fishing_stats=self.fishing_stats, start_time=self.start_time, game_screenshot=sct.grab(self.game_window_rect))
                         continue  # Start at beginning of loop so we cast our rod
-                # Don't allow a break to start while we're catching a fish
-                logger.debug("Setting break_allowed to False")
-                self.break_helper.break_allowed = False
                 # Cast fishing rod
                 logger.info("Casting fishing rod")
                 self.input_helper.press_key(self.settings_helper.settings['fishing'].get('fishing_hotkey'))
-                self.rods_cast += 1
+                self.fishing_stats['rods_cast'] += 1
                 # Wait for bobber to appear
                 bobber_wait_time = 2.5
                 logger.debug(f"Sleeping {bobber_wait_time} seconds for bobber to appear.")
@@ -382,9 +423,9 @@ class FishingBot():
                         loot_loc = self.count_loot(loot_box)
                         # If it clicked nothing thinking it was a caught bobber, loot_loc will be None
                         if loot_loc == None:
-                            self.no_fish_casts += 1
+                            self.fishing_stats['no_fish_casts'] += 1
                             continue
-                        self.fish_caught += 1
+                        self.fishing_stats['fish_caught'] += 1
                         # Click on fish in loot window
                         logger.info("Looting fish from loot window.")
                         box = (self.translate_coords(loot_box[0]), self.translate_coords(loot_box[1]))
@@ -394,31 +435,88 @@ class FishingBot():
                         self.input_helper.click_mouse()
                     else:
                         logger.warning('Failed to get catch.')
-                        self.no_fish_casts += 1
+                        self.fishing_stats['no_fish_casts'] += 1
 
 
     def auto_vendor(self, mammoth_hotkey, target_hotkey, interact_hotkey):
         """Gets on mount, targets shop npc, and opens shop for addon to auto sell trash."""
         logger.info('Starting auto vendor')
-        # Get on mount
-        logger.debug('getting on mount')
+
+        logger.debug('Getting on mount')
         self.input_helper.press_key(mammoth_hotkey)
         time.sleep(3 + random.random())
-        # Target shop npc with target macro
-        logger.debug('targetting npc')
+
+        logger.debug('Targetting npc')
         self.input_helper.press_key(target_hotkey)
         time.sleep(1 + random.random())
-        # Interact with target
-        logger.debug('interacting with npc / opening shop')
+
+        logger.debug('Interacting with npc / opening shop')
         self.input_helper.press_key(interact_hotkey)
         time.sleep(1 + random.random())
-        # Vendor addon should now sell all of the non-valuable fish
-        logger.debug('Sleeping while Vendor addon sells trash')
+
+        logger.debug('Sleeping while Elvui auto-vendor sells trash')
         time.sleep(5 + random.random())
-        # Close shop window
-        logger.debug('closing shop window')
+
+        logger.debug('Closing shop window')
         self.input_helper.press_key('esc')  # escape
         time.sleep(1 + random.random())
+
+        logger.debug('Getting off mount')
+        self.input_helper.press_key(mammoth_hotkey)
+        logger.debug('Waiting for vendors to despawn')
+        time.sleep(5 + random.random())
+
+
+    def auto_guild_bank(self, guild_bank_hotkey, view_one_hotkey, view_two_hotkey, fill_hotkey, interact_hotkey):
+        """Automatically summons a guild bank, opens it, and lets addon deposit items."""
+        logger.info("Depositing items into guild bank.")
+        
+        logger.debug("Pressing guild bank hotkey")
+        self.input_helper.press_key(guild_bank_hotkey)
+        time.sleep(5 + random.random())
+
+        logger.debug("Setting camera to view #2")
+        self.input_helper.press_key(view_two_hotkey)
+        time.sleep(1 + random.random())
+
+        logger.debug("Interacting with guild bank (hitting interact hotkey)")
+        self.input_helper.press_key(interact_hotkey)
+        time.sleep(1 + random.random())
+
+        logger.debug("Using /fill macro")
+        self.input_helper.press_key(fill_hotkey)
+        time.sleep(1 + random.random())
+
+        logger.debug("Sleeping while items are transferred.")
+        time.sleep(30 + random.random())
+
+        logger.debug("Closing bank (hitting esc)")
+        self.input_helper.press_key('esc')  # escape
+        time.sleep(1 + random.random())
+
+        logger.debug("Setting camera to view #1")
+        self.input_helper.press_key(view_one_hotkey)
+        time.sleep(1 + random.random())
+
+        logger.success('Finished depositing items into guild bank!')
+
+
+    def open_recipe_bottles(self, recipe_bottle_count: int):
+        """Turns on auto loot, clicks open bottle hotkey x times, then turns auto-loot off."""
+        logger.info(f"Opening {recipe_bottle_count} recipe bottles.")
+        # Hit macro key to turn auto-loot on
+        logger.debug("Turning autoloot on.")
+        self.input_helper.press_key(self.toggle_autoloot_hotkey)
+        for recipe_bottle in range(0, recipe_bottle_count):
+            logger.debug(f"Opening recipe bottle {recipe_bottle}.")
+            # Hit macro key to use recipe bottle (open it)
+            self.input_helper.press_key(self.open_recipe_hotkey)
+            # Sleep for a second while it loots
+            time.sleep(1 + random.random())
+        # Hit macro key again to turn auto-loot off
+        logger.debug("Turning autoloot off.")
+        self.input_helper.press_key(self.toggle_autoloot_hotkey)
+        logger.success(f"Opened {recipe_bottle_count} recipe bottles.")
 
 
     def cache_loot_templates(self):
@@ -433,48 +531,6 @@ class FishingBot():
             # Add to dict
             template_name = template_file.removesuffix('.png')
             self.fish_map[template_name]['template'] = template
-
-
-    def send_stats(self, game_screenshot):
-        """Prints stats for current run and sends via webhook if enabled."""
-        time_ran = get_duration(then=self.start_time, now=datetime.now(), interval='default')
-        self.fish_map = self.tsm.get_gold_earned(self.fish_map)
-        # Calculate and formate total gold earned
-        gold_earned = round(sum([self.fish_map[fish]['loot_count'] * self.tsm.fish_map[fish]['price'] for fish in self.tsm.fish_map]), 2)
-        gold_earned = f"{gold_earned}g"
-        # Print progress report to console.
-        logger.success('-----------------------')
-        logger.success('Progress Report:')
-        logger.success(f'Time Ran: {time_ran} minute(s)')
-        logger.success(f'Estimated Gold Earned: {gold_earned}')
-        logger.success(f'Rods Cast: {self.rods_cast}')
-        logger.success(f'Fish Caught: {self.fish_caught}')
-        logger.success(f'Bait Used: {self.bait_used}')
-        logger.success('-----------------------')
-
-        # Send a progress report via discord webhook if it's enabled.
-        if self.settings_helper.settings['webhook'].getboolean('discord_webhook_enabled'):
-            logger.debug('sending webhook notification')
-
-            async def send_discord_progress_report():
-                async with aiohttp.ClientSession() as session:
-                    webhook = Webhook.from_url(url=self.webhook_url, session=session)
-                    embed = Embed(title='Progress Report', description='Fishing Assistant Progress Report')
-                    embed.add_field(name='Time Ran:', value=time_ran)
-                    embed.add_field(name='Rods Cast:', value=self.rods_cast)
-                    embed.add_field(name='Fish Caught:', value=self.fish_caught)
-                    embed.add_field(name='Estimated Gold Earned:', value=gold_earned)
-                    embed.add_field(name='Bait Used:', value=self.bait_used)
-                    embed.add_field(name='No catch casts:', value=self.no_fish_casts)
-                    for fish in self.fish_map:
-                        if self.fish_map[fish]['loot_count'] > 0:
-                            embed.add_field(name=fish, value=self.fish_map[fish]['loot_count'])
-                    mss.tools.to_png(game_screenshot.rgb, game_screenshot.size, output='game_screenshot.png')
-                    file = File("game_screenshot.png", filename="game_screenshot.png")
-                    embed.set_image(url="attachment://game_screenshot.png")
-                    await webhook.send(embed=embed, file=file, username=self.settings_helper.settings['user'].get('nickname'))
-
-            asyncio.run(send_discord_progress_report())
 
 
     def translate_coords(self, coords, sub_region = None):

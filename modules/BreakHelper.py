@@ -5,14 +5,13 @@ import threading
 import time
 from datetime import datetime
 from loguru import logger
-from modules.LoggingHelper import LoggingHelper
 from utility.util import has_time_passed
 
 
 class BreakHelper():
     stopped = True
     """Class to handle taking breaks during automation sessions."""
-    def __init__(self, settings_helper, input_helper, *args, **kwargs):
+    def __init__(self, settings_helper, input_helper, logging_helper, *args, **kwargs):
         self.settings_helper = settings_helper
         # Get breaks settings from settings.ini
         self.playtime_duration_range = self.settings_helper.settings['breaks']['playtime_duration_range']
@@ -20,7 +19,7 @@ class BreakHelper():
         # Initialize input helper
         self.input_helper = input_helper
         # Initialize logging helper
-        self.logging_helper = LoggingHelper(self.settings_helper)
+        self.logging_helper = logging_helper
         # Get WoW path
         self.wow_path = self.settings_helper.settings['breaks']['wow_path']
         self.break_start_time = None
@@ -142,6 +141,7 @@ class BreakHelper():
             # Early return if we're in the middle of a fishing loop
             if self.break_allowed == False:
                 continue
+            logger.debug("Allowed to break. Checking if we should start a break.")
             # Check if we need to take an extended break for Tuesday reset
             minutes = self.check_tuesday_reset()
             if minutes > 0:
