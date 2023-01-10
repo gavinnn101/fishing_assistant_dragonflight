@@ -59,7 +59,9 @@ class BreakHelper():
             # Negative minutes means it isn't between our break hours
             return -1
         # Check if the current time is between 6:00 A.M. and 9:30 A.M. PST
-        elif (pst_time.hour >= 6 and pst_time.hour < 9) or (pst_time.hour == 9 and pst_time.minute < 30):
+        elif not (pst_time.hour >= 6 and pst_time.hour < 9) or not (pst_time.hour == 9 and pst_time.minute < 30):
+            return -1
+        else:
             return minutes
 
 
