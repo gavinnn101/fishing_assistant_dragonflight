@@ -127,6 +127,7 @@ Fishing Assistant bot rewritten from scratch for Dragonflight. Cleaner codebase,
 * * * set resolution to windowed - `1280x768`
 * * * Set resolution scale to `100%`
 * * * Set auto-loot to `disabled`
+* * * Enable `interact hotkey` (just setting the hotkey isnt good enough. theres a checkbox for this setting.)
 * * ElvUI Settings:
 * * General -> General tab -> Set UI Scale to `0.64`
 * * General -> BlizzUI Improvements -> Uncheck `Loot Frame` in the General/top section.

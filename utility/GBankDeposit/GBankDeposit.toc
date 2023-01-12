@@ -1,0 +1,7 @@
+## Interface: 100002
+## Title: GBankDeposit
+## Notes: Deposits tradable items in your bag to any open slot in any guild bank tab.
+## Author: gavinnn101
+## Version: 0.0.1
+
+GBankDeposit.lua
