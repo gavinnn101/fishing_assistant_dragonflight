@@ -14,17 +14,23 @@ function frame:OnEvent(event, arg1)
                     -- Get item ID
                     local itemID = C_Container.GetContainerItemID(bag, slot)
                     print("itemID: " ..itemID)
-                    -- Pickup item after 2 seconds
-                    success = C_Timer.After(2, C_Container.PickupContainerItem(bag, slot))
-                    print("success: " ..success)
-                    if not success then
-                        print("Error picking up item: "..itemID.." from bag "..bag..", slot "..slot)
+                    -- Skip item if it's soulbound
+                    if C_Item.IsBound(ItemLocation:CreateFromBagAndSlot(bag, slot)) then
+                        print("Skipping soulbound item.")
                     else
-                        print("Depositing item: "..itemID.." to guild bank")
-                        local tab = GetCurrentGuildBankTab()
-                        local success = DepositGuildBankItem(tab, slot)
+                        print("Picking up non-soulbound item")
+                        -- Pickup item after 2 seconds
+                        success = C_Timer.After(2, C_Container.PickupContainerItem(bag, slot))
+                        print("success: " ..success)
                         if not success then
-                            print("Error depositing item: "..itemID.." to guild bank")
+                            print("Error picking up item: "..itemID.." from bag "..bag..", slot "..slot)
+                        else
+                            print("Depositing item: "..itemID.." to guild bank")
+                            local tab = GetCurrentGuildBankTab()
+                            local success = DepositGuildBankItem(tab, slot)
+                            if not success then
+                                print("Error depositing item: "..itemID.." to guild bank")
+                            end
                         end
                     end
                 end
