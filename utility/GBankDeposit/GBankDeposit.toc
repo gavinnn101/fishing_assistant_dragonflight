@@ -1,6 +1,6 @@
 ## Interface: 100002
 ## Title: GBankDeposit
-## Notes: Deposits tradable items in your bag to any open slot in any guild bank tab.
+## Notes: Deposits items in itemsToDeposit list in your bag to any available slot in any guild bank tab.
 ## Author: gavinnn101
 ## Version: 0.0.1
 
