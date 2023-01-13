@@ -37,17 +37,15 @@ end
 
 local function findAvailableBankTab()
     print("Finding bank tab with available space")
-    local numTabs = GetNumGuildBankTabs()
-    while numTabs > 0 do
+    for tab = 0, GetNumGuildBankTabs() do
         -- If the last slot (98) is available then we can deposit our item.
         local bankTab = GetCurrentGuildBankTab()
         local lastSlot = GetGuildBankItemInfo(bankTab, 98)
         if lastSlot == nil then
-            print("Found guild bank slot with available space: " ..numTabs)
+            print("Found guild bank tab with available space: " ..tab)
             return true
         end
-        SetCurrentGuildBankTab(numTabs)
-        numTabs = numTabs - 1
+        SetCurrentGuildBankTab(tab)
     end
     return false
 end
