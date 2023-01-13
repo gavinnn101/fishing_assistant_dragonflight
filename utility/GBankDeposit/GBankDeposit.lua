@@ -1,40 +1,66 @@
-local delay = 1 -- delay in seconds
+local delay = 1 -- delay in seconds between each deposit
 
--- Define the function that deposits items
-local function depositItem(bag, slot)
-    local itemID = C_Container.GetContainerItemID(bag, slot)
-    if itemID then
-        -- Skip item if it's soulbound
-        if C_Item.IsBound(ItemLocation:CreateFromBagAndSlot(bag, slot)) then
-            print("Skipping soulbound item: " ..itemID)
+local itemsToDeposit = {
+    ['Dull Spined Clam'] = true, 
+    ['Ribbed Mollusk Meat'] = true, 
+    ['Scalebelly Mackerel'] = true, 
+    ['Temporal Dragonhead'] = true,
+    ['Thousandbite Piranha'] = true,
+    ['Islefin Dorado'] = true,
+    ['Cerulean Spinefish'] = true,
+    ['Aileron Seamoth'] = true,
+    ['Soggy Clump of Darkmoon Cards'] = true,
+    ['Schematic'] = true, -- Schematic: recipes
+    ['Plans'] = true, -- Plans: recipes
+    ['Technique'] = true, -- Technique: recipes
+    ['Recipe'] = true -- Recipe: recipes
+}
+
+-- Function to check if an item should be deposited
+local function checkItemValid(itemID)
+    local itemName = GetItemInfo(itemID)
+    print("Checking if item name should be deposited: " ..itemName)
+    for item, _ in pairs(itemsToDeposit) do
+        -- print("Checking against item: " ..item)
+        if string.find(itemName, item) then
+            return true
+        end
+    end
+    return false
+end
+
+-- Function to deposit an item after checking that it should be
+-- I don't really fully understand it but it works great. God bless chatgpt
+-- The need for this is calling UseContainerItem without a "proper" wait / queue wont work. Only 1 item will get deposited usually
+local function depositNextItem(bag, slot)
+    if slot > C_Container.GetContainerNumSlots(bag) then
+        -- All items in the current bag have been processed
+        if bag < NUM_TOTAL_EQUIPPED_BAG_SLOTS then
+            -- Process the next bag
+            depositNextItem(bag + 1, 1)
         else
-            print("Interacting with item: " ..itemID)
-            -- Pickup item
-            C_Container.UseContainerItem(bag, slot)
-            print("finished interacting with item: " ..itemID)
+            -- All items have been processed
+            print("Finished depositing items.")
         end
-        -- Find the next item to deposit
-        for i = slot + 1, C_Container.GetContainerNumSlots(bag) do
-            if C_Container.GetContainerItemID(bag, i) then
-                -- Deposit the next item after the delay
-                C_Timer.After(delay, function() depositItem(bag, i) end)
-                return
-            end
-        end
-        for i = 0, NUM_BAG_SLOTS do
-            if i ~= bag then
-                for j = 1, C_Container.GetContainerNumSlots(i) do
-                    if C_Container.GetContainerItemID(i, j) then
-                        -- Deposit the next item after the delay
-                        C_Timer.After(delay, function() depositItem(i, j) end)
-                        return
-                    end
-                end
-            end
+    else
+        local itemID = C_Container.GetContainerItemID(bag, slot)
+        if not itemID then
+            -- Skip empty slot
+            depositNextItem(bag, slot + 1)
+        elseif checkItemValid(itemID) then
+            -- Deposit the item
+            C_Timer.After(delay, function()
+                C_Container.UseContainerItem(bag, slot)
+                depositNextItem(bag, slot + 1)
+            end)
+        else
+            -- Skip item
+            depositNextItem(bag, slot + 1)
         end
     end
 end
 
+-- Function to find a guild bank tab with available space to deposit items
 local function findAvailableBankTab()
     print("Finding bank tab with available space")
     for tab = 0, GetNumGuildBankTabs() do
@@ -42,7 +68,7 @@ local function findAvailableBankTab()
         local bankTab = GetCurrentGuildBankTab()
         local lastSlot = GetGuildBankItemInfo(bankTab, 98)
         if lastSlot == nil then
-            print("Found guild bank tab with available space: " ..tab)
+            print("Found guild bank tab with available space: " ..bankTab)
             return true
         end
         SetCurrentGuildBankTab(tab)
@@ -57,22 +83,10 @@ frame:RegisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_SHOW");
 -- Define the event handler function
 function frame:OnEvent(event, arg1)
     if event == "PLAYER_INTERACTION_MANAGER_FRAME_SHOW" then
-        if arg1 == 10 then --Guild Bank
+        if arg1 == 10 then -- Guild Bank
             print("GBank opened")
-            -- Find bank tab with available space
             if findAvailableBankTab() then
-                -- Loop over each bag on character
-                for bag = BACKPACK_CONTAINER, NUM_TOTAL_EQUIPPED_BAG_SLOTS do
-                    -- Loop over each slot in bag to find an item
-                    for slot = 1, C_Container.GetContainerNumSlots(bag) do
-                        local itemID = C_Container.GetContainerItemID(bag, slot)
-                        if itemID then
-                            print("Depositing item: " ..itemID.. "in bag: " ..bag)
-                            depositItem(bag, slot)
-                            return
-                        end
-                    end
-                end
+                depositNextItem(BACKPACK_CONTAINER, 1)
             else
                 print("You don't have any available space in your guild bank!!!")
             end
