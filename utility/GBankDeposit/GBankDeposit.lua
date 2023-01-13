@@ -13,7 +13,8 @@ local itemsToDeposit = {
     ['Schematic'] = true, -- Schematic: recipes
     ['Plans'] = true, -- Plans: recipes
     ['Technique'] = true, -- Technique: recipes
-    ['Recipe'] = true -- Recipe: recipes
+    ['Recipe'] = true, -- Recipe: recipes
+    ['Pattern'] = true -- Pattern: recipes
 }
 
 -- Function to check if an item should be deposited
@@ -61,19 +62,28 @@ local function depositNextItem(bag, slot)
 end
 
 -- Function to find a guild bank tab with available space to deposit items
+-- Sometimes items wouldn't be loaded before the check so I asked chatgpt to refactor and it added a coroutine.
 local function findAvailableBankTab()
     print("Finding bank tab with available space")
-    for tab = 0, GetNumGuildBankTabs() do
-        -- If the last slot (98) is available then we can deposit our item.
-        local bankTab = GetCurrentGuildBankTab()
-        local lastSlot = GetGuildBankItemInfo(bankTab, 98)
-        if lastSlot == nil then
-            print("Found guild bank tab with available space: " ..bankTab)
-            return true
+    local tabFound = false
+    local co = coroutine.create(function()
+        for tab = 0, GetNumGuildBankTabs() do
+            local bankTab = GetCurrentGuildBankTab()
+            local lastSlot = GetGuildBankItemInfo(bankTab, 98)
+            if lastSlot == nil then
+                print("Found guild bank tab with available space: " ..bankTab)
+                tabFound = true
+                break
+            end
+            SetCurrentGuildBankTab(tab)
+            coroutine.yield()
         end
-        SetCurrentGuildBankTab(tab)
+    end)
+    while not tabFound do
+        coroutine.resume(co)
+        C_Timer.After(1, function() end)
     end
-    return false
+    return tabFound
 end
 
 -- Create a frame to listen for the PLAYER_INTERACTION_MANAGER_FRAME_SHOW event
