@@ -33,6 +33,7 @@ end
 
 -- Function to deposit an item after checking that it should be
 local function depositNextItem(bag, slot)
+    if stop then return end
     if slot > C_Container.GetContainerNumSlots(bag) then
         -- All items in the current bag have been processed
         if bag < NUM_TOTAL_EQUIPPED_BAG_SLOTS then
@@ -86,12 +87,14 @@ function frame:OnEvent(event, arg1)
     if event == "PLAYER_INTERACTION_MANAGER_FRAME_SHOW" then
         if arg1 == 10 then -- Guild Bank
             print("GBank opened")
+            stop = false
             if findAvailableBankTab() then
                 print("Depositing items")
                 depositNextItem(BACKPACK_CONTAINER, 1)
             end
         end
     elseif event == "PLAYER_INTERACTION_MANAGER_FRAME_HIDE" then
+        print("Stopping")
         stop = true
     end
 end
