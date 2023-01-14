@@ -1,4 +1,5 @@
 local delay = 1 -- delay in seconds between each deposit
+local stop = false
 
 local itemsToDeposit = {
     ['Dull Spined Clam'] = true, 
@@ -31,8 +32,6 @@ local function checkItemValid(itemID)
 end
 
 -- Function to deposit an item after checking that it should be
--- I don't really fully understand it but it works great. God bless chatgpt
--- The need for this is calling UseContainerItem without a "proper" wait / queue wont work. Only 1 item will get deposited usually
 local function depositNextItem(bag, slot)
     if slot > C_Container.GetContainerNumSlots(bag) then
         -- All items in the current bag have been processed
@@ -61,34 +60,26 @@ local function depositNextItem(bag, slot)
     end
 end
 
--- Function to find a guild bank tab with available space to deposit items
--- Sometimes items wouldn't be loaded before the check so I asked chatgpt to refactor and it added a coroutine.
-local function findAvailableBankTab()
+-- Function to find a bank tab with available space to deposit our items.
+function findAvailableBankTab()
     print("Finding bank tab with available space")
-    local tabFound = false
-    local co = coroutine.create(function()
-        for tab = 0, GetNumGuildBankTabs() do
-            local bankTab = GetCurrentGuildBankTab()
-            local lastSlot = GetGuildBankItemInfo(bankTab, 98)
-            if lastSlot == nil then
-                print("Found guild bank tab with available space: " ..bankTab)
-                tabFound = true
-                break
-            end
-            SetCurrentGuildBankTab(tab)
-            coroutine.yield()
+    for tab = 1, GetNumGuildBankTabs() do
+        SetCurrentGuildBankTab(tab)
+        -- QueryGuildBankTab(tab)
+        print("Checking bank tab: "..tab)
+        local lastSlot = GetGuildBankItemInfo(tab, 98)
+        if lastSlot == nil then
+            print("Found guild bank tab with available space: " ..tab)
+            return true
         end
-    end)
-    while not tabFound do
-        coroutine.resume(co)
-        C_Timer.After(1, function() end)
     end
-    return tabFound
+    return false
 end
 
 -- Create a frame to listen for the PLAYER_INTERACTION_MANAGER_FRAME_SHOW event
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_SHOW");
+frame:RegisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_HIDE");
 
 -- Define the event handler function
 function frame:OnEvent(event, arg1)
@@ -96,11 +87,12 @@ function frame:OnEvent(event, arg1)
         if arg1 == 10 then -- Guild Bank
             print("GBank opened")
             if findAvailableBankTab() then
+                print("Depositing items")
                 depositNextItem(BACKPACK_CONTAINER, 1)
-            else
-                print("You don't have any available space in your guild bank!!!")
             end
         end
+    elseif event == "PLAYER_INTERACTION_MANAGER_FRAME_HIDE" then
+        stop = true
     end
 end
 
