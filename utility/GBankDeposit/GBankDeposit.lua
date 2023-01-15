@@ -94,8 +94,10 @@ function frame:OnEvent(event, arg1)
             end
         end
     elseif event == "PLAYER_INTERACTION_MANAGER_FRAME_HIDE" then
-        print("Stopping")
-        stop = true
+        if arg1 == 10 then
+            print("Stopping")
+            stop = true
+        end
     end
 end
 
