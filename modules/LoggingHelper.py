@@ -28,8 +28,10 @@ class LoggingHelper():
                 webhook = Webhook.from_url(url=self.webhook_url, session=session)
                 embed = Embed(title='Break Notification', description=f'Break {action} for {account_name}')
                 embed.add_field(name='Break duration (minutes):', value=break_time)
-                await webhook.send(embed=embed, username=account_name)
-
+                try:
+                    await webhook.send(embed=embed, username=account_name)
+                except Exception as e:
+                    logger.error(f"Caugh exception while sending break notification: {e}")
         nickname = self.settings_helper.settings['user'].get('nickname')
         # Set action depending if break_end is True or not.
         action = "ended" if break_end else "started"
@@ -56,7 +58,11 @@ class LoggingHelper():
                 mss.tools.to_png(game_screenshot.rgb, game_screenshot.size, output='game_screenshot.png')
                 file = File("game_screenshot.png", filename="game_screenshot.png")
                 embed.set_image(url="attachment://game_screenshot.png")
-                await webhook.send(embed=embed, username=account_name, file=file)
+                try:
+                    await webhook.send(embed=embed, username=account_name, file=file)
+                except Exception as e:
+                    logger.error(f"Caugh exception while sending progress report: {e}")
+
 
 
         time_ran = get_duration(then=start_time, now=datetime.now(), interval='default')
